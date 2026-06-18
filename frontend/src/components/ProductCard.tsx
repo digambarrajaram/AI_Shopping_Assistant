@@ -55,7 +55,7 @@ function StarRating({
       </span>
       {reviewCount && reviewCount > 0 && (
         <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
-          ({reviewCount.toLocaleString()})
+          ({reviewCount.toLocaleString()} review{reviewCount !== 1 ? "s" : ""})
         </span>
       )}
     </div>

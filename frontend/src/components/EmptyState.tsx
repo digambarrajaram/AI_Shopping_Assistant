@@ -1,67 +1,181 @@
-export default function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      {/* Large leaf SVG */}
-      <svg
-        className="w-20 h-20 mb-6 opacity-80"
-        viewBox="0 0 80 80"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M40 8C22 8 14 22 14 34c0 12 8 20 16 24v4h20v-4c8-4 16-12 16-24 0-12-8-26-26-26z"
-          fill="#10B981"
-          opacity=".12"
-        />
-        <path
-          d="M40 12C26.74 12 20 21.84 20 31.2c0 9.36 6.74 16 13.6 19.6.94.52 1.6.9 2.4 1.2v4h8v-4c.8-.3 1.46-.68 2.4-1.2C53.26 47.2 60 40.56 60 31.2 60 21.84 53.26 12 40 12z"
-          fill="#10B981"
-        />
-        <path
-          d="M40 18c-4 0-6 3-6 8h12c0-5-2-8-6-8z"
-          fill="#6EE7B7"
-        />
-        <path
-          d="M28 40c0 4 3.58 8 8 8s8-4 8-8"
-          stroke="#10B981"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          opacity=".5"
-        />
-      </svg>
+import { motion } from "framer-motion";
 
-      {/* Greeting */}
-      <h2
+interface EmptyStateProps {
+  onSelect?: (text: string) => void;
+}
+
+interface PrimaryAction {
+  icon: string;
+  title: string;
+  description: string;
+  query: string;
+}
+
+const PRIMARY_ACTIONS: PrimaryAction[] = [
+  {
+    icon: "🛒",
+    title: "Find Products",
+    description: "Browse our catalog",
+    query: "What products do you have?",
+  },
+  {
+    icon: "⭐",
+    title: "Product Reviews",
+    description: "Read customer feedback",
+    query: "Show me product reviews",
+  },
+  {
+    icon: "📦",
+    title: "Place an Order",
+    description: "Order products quickly",
+    query: "Help me place an order",
+  },
+  {
+    icon: "📜",
+    title: "My Orders",
+    description: "View order history",
+    query: "What are my past orders?",
+  },
+];
+
+const prefersReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export default function EmptyState({ onSelect }: EmptyStateProps) {
+  return (
+    <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+      {/* Illustration */}
+      <motion.div
+        initial={prefersReducedMotion ? {} : { opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="mb-7"
+      >
+        <div
+          className="w-20 h-20 rounded-[24px] flex items-center justify-center"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.03))",
+            border: "1px solid rgba(16,185,129,0.15)",
+          }}
+        >
+          {/* Shopping bag + leaf icon */}
+          <svg
+            className="w-10 h-10"
+            viewBox="0 0 40 40"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 14l3-6h10l3 6"
+              stroke="#10B981"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <rect
+              x="8"
+              y="14"
+              width="24"
+              height="20"
+              rx="3"
+              stroke="#10B981"
+              strokeWidth="2"
+            />
+            <path
+              d="M16 22v4a4 4 0 008 0v-4"
+              stroke="#6EE7B7"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <circle cx="20" cy="11" r="2" fill="#10B981" />
+          </svg>
+        </div>
+      </motion.div>
+
+      {/* Heading */}
+      <motion.h2
+        initial={prefersReducedMotion ? {} : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
         className="text-[28px] leading-tight mb-3 text-[var(--text-primary)]"
         style={{ fontFamily: "'Playfair Display', serif" }}
       >
-        How can I help you today?
-      </h2>
+        Welcome to ShopAssist
+      </motion.h2>
 
-      <p className="text-[14px] text-[var(--text-secondary)] mb-8 max-w-sm">
-        I&apos;m your AI shopping assistant — here to help you find products,
-        check reviews, and place orders.
-      </p>
+      <motion.p
+        initial={prefersReducedMotion ? {} : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="text-[14px] text-[var(--text-secondary)] mb-10 max-w-xs leading-relaxed"
+        style={{ fontFamily: "'Inter', sans-serif" }}
+      >
+        I can help you:
+      </motion.p>
 
-      {/* Capability chips */}
-      <div className="flex flex-wrap gap-2.5 justify-center">
-        {[
-          { icon: "🛍️", label: "Browse products" },
-          { icon: "⭐", label: "Check reviews" },
-          { icon: "📦", label: "Place orders" },
-        ].map(({ icon, label }) => (
-          <span
-            key={label}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full
-                       text-[13px] font-medium border border-[var(--border)]
-                       text-[var(--text-secondary)] bg-[var(--surface)]"
-            style={{ fontFamily: "'Inter', sans-serif" }}
+      {/* Primary action cards — 2×2 grid */}
+      <motion.div
+        initial={prefersReducedMotion ? {} : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.25, ease: "easeOut" }}
+        className="grid grid-cols-2 gap-3 w-full max-w-[340px] mb-2"
+      >
+        {PRIMARY_ACTIONS.map((action, idx) => (
+          <motion.button
+            key={action.title}
+            initial={
+              prefersReducedMotion
+                ? {}
+                : { opacity: 0, y: 8 }
+            }
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.35,
+              delay: 0.3 + idx * 0.07,
+              ease: "easeOut",
+            }}
+            whileHover={{ y: -2, scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => onSelect?.(action.query)}
+            className="flex flex-col items-center gap-2 p-4 rounded-2xl text-left
+                       transition-all duration-200
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            style={{
+              backgroundColor: "#101827",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#141E30";
+              e.currentTarget.style.borderColor = "rgba(16,185,129,0.25)";
+              e.currentTarget.style.boxShadow =
+                "0 4px 20px rgba(16,185,129,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#101827";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
           >
-            <span aria-hidden="true">{icon}</span>
-            {label}
-          </span>
+            <span className="text-[24px]" aria-hidden="true">
+              {action.icon}
+            </span>
+            <span
+              className="text-[13px] font-semibold text-[var(--text-primary)]"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              {action.title}
+            </span>
+            <span
+              className="text-[11px] text-[var(--text-tertiary)] leading-tight"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              {action.description}
+            </span>
+          </motion.button>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

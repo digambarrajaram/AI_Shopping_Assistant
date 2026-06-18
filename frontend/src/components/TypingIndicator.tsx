@@ -14,7 +14,7 @@ export default function TypingIndicator() {
     <motion.div
       initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
       className="flex items-start gap-3 mb-4"
     >
       {/* Avatar */}
@@ -33,29 +33,37 @@ export default function TypingIndicator() {
 
       {/* Bubble */}
       <div
-        className="px-4 py-3 rounded-[12px_12px_12px_4px] max-w-[80%]"
+        className="px-4 py-3 rounded-[12px_12px_12px_4px]"
         style={{
           backgroundColor: "var(--surface)",
           boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
         }}
       >
-        <div className="flex items-center gap-1.5 py-0.5">
-          {[0, 1, 2].map((i) => (
-            <motion.span
-              key={i}
-              className="w-2 h-2 rounded-full inline-block"
-              style={{ backgroundColor: "var(--text-tertiary)" }}
-              variants={dotVariants}
-              initial="initial"
-              animate="animate"
-              transition={{
-                repeat: Infinity,
-                repeatType: "reverse",
-                duration: 0.5,
-                delay: i * 0.15,
-              }}
-            />
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {[0, 1, 2].map((i) => (
+              <motion.span
+                key={i}
+                className="w-1.5 h-1.5 rounded-full inline-block"
+                style={{ backgroundColor: "var(--accent)" }}
+                variants={dotVariants}
+                initial="initial"
+                animate="animate"
+                transition={{
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  duration: 0.6,
+                  delay: i * 0.15,
+                }}
+              />
+            ))}
+          </div>
+          <span
+            className="text-[12px] text-[var(--text-tertiary)]"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+          >
+            Thinking…
+          </span>
         </div>
       </div>
     </motion.div>

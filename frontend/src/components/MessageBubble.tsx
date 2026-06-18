@@ -1,7 +1,8 @@
+import { useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Message, ChatProduct } from "../types/chat";
+import type { Message, ChatProduct, ChatOrder } from "../types/chat";
 import type { ShopProduct } from "../hooks/useProducts";
 import ProductList, {
   parseProductsFromText,
@@ -9,6 +10,7 @@ import ProductList, {
   MIN_PRODUCT_THRESHOLD,
   type ParsedProduct,
 } from "./ProductList";
+import OrderCard from "./OrderCard";
 import { findImageUrl } from "../hooks/useProducts";
 
 /** Convert backend ChatProduct → ParsedProduct for ProductList rendering. */
@@ -23,6 +25,8 @@ function chatProductsToParsed(
     category: p.category || "",
     isOrganic: /organic/i.test(p.name),
     imageUrl: p.imageUrl || findImageUrl(catalog, p.name),
+    rating: p.rating ?? null,
+    reviewCount: p.reviewCount ?? null,
   }));
 }
 
@@ -136,6 +140,45 @@ function detectProducts(
   };
 }
 
+// ── Order detection ─────────────────────────────────────────────
+
+interface OrderParseResult {
+  hasOrders: boolean;
+  intro: string;
+}
+
+/** When the backend returns structured order data, extract any intro
+ *  text from the LLM's reply and suppress the raw order listing so the
+ *  frontend renders real cards instead of parsing prose. */
+function detectOrders(
+  text: string,
+  structured?: ChatOrder[] | null,
+): OrderParseResult {
+  if (!structured || structured.length === 0) {
+    return { hasOrders: false, intro: text };
+  }
+
+  // Split the text at the first line that looks like an order listing
+  // (contains a product name from the structured data or a price line).
+  const lines = text.split("\n");
+  const cutoff = lines.findIndex((l) =>
+    structured.some(
+      (o) =>
+        l.includes(o.productName) ||
+        /\$\d+\.\d{2}/.test(l),
+    ),
+  );
+
+  const intro =
+    cutoff > 0
+      ? lines.slice(0, cutoff).join("\n").trim()
+      : cutoff === 0
+        ? ""
+        : text;
+
+  return { hasOrders: true, intro };
+}
+
 // ── Motion ───────────────────────────────────────────────────────
 
 const prefersReducedMotion =
@@ -161,6 +204,7 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isError = message.status === "error";
+  const [copied, setCopied] = useState(false);
 
   const sanitizedContent = isUser
     ? message.content
@@ -169,6 +213,20 @@ export default function MessageBubble({
   const productInfo = !isUser
     ? detectProducts(sanitizedContent, products, message.products)
     : null;
+
+  const orderInfo = !isUser
+    ? detectOrders(sanitizedContent, message.orders)
+    : null;
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API not available — silently ignore
+    }
+  }, [message.content]);
 
   return (
     <motion.div
@@ -180,21 +238,21 @@ export default function MessageBubble({
       layout
     >
       <div
-        className={`flex items-start gap-3 ${
+        className={`flex items-start gap-2.5 ${
           isUser
-            ? "flex-row-reverse max-w-[88%]"
-            : "max-w-[92%]"
+            ? "flex-row-reverse max-w-[85%]"
+            : "max-w-[95%]"
         }`}
       >
         {/* Avatar — assistant only */}
         {!isUser && (
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
             style={{ backgroundColor: "var(--accent)" }}
             aria-hidden="true"
           >
             <span
-              className="text-white text-[12px] font-semibold"
+              className="text-white text-[11px] font-semibold"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
               S
@@ -205,26 +263,29 @@ export default function MessageBubble({
         {/* Bubble */}
         <div className="flex flex-col min-w-0">
           <div
-            className={`px-4 py-3 break-words ${
+            className={`px-[18px] py-[14px] break-words ${
               isUser
-                ? "rounded-[12px_12px_4px_12px] border-l-[3px] border-l-[var(--accent)]"
-                : "rounded-[12px_12px_12px_4px]"
+                ? "rounded-[18px_18px_6px_18px]"
+                : "rounded-[18px_18px_18px_6px]"
             }`}
             style={
               isUser
-                ? { backgroundColor: "var(--accent-soft)" }
+                ? { backgroundColor: "#1A2235" }
                 : {
                     backgroundColor: "var(--surface)",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                   }
             }
           >
             {/* Sender label */}
             <div
-              className={`text-[11px] font-semibold uppercase tracking-wide mb-1 ${
+              className={`text-[10px] font-semibold mb-1.5 ${
                 isUser ? "text-[var(--accent)]" : "text-[var(--text-tertiary)]"
               }`}
-              style={{ fontFamily: "'Inter', sans-serif" }}
+              style={{
+                fontFamily: "'Inter', sans-serif",
+                letterSpacing: "0.04em",
+              }}
             >
               {isUser ? "You" : "🛒 ShopAssist"}
             </div>
@@ -234,6 +295,17 @@ export default function MessageBubble({
               <p className="text-[15px] leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap">
                 {sanitizedContent}
               </p>
+            ) : orderInfo?.hasOrders ? (
+              <>
+                {orderInfo.intro && (
+                  <div className="prose prose-sm max-w-none text-[15px] leading-relaxed text-[var(--text-primary)] mb-2">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {orderInfo.intro}
+                    </ReactMarkdown>
+                  </div>
+                )}
+                <OrderCard orders={message.orders!} />
+              </>
             ) : productInfo?.hasProducts ? (
               <>
                 {productInfo.intro && (
@@ -263,7 +335,7 @@ export default function MessageBubble({
             )}
           </div>
 
-          {/* Timestamp + error */}
+          {/* Timestamp + actions */}
           <div
             className={`flex items-center gap-2 mt-1 ${
               isUser ? "justify-end" : "justify-start"
@@ -276,6 +348,21 @@ export default function MessageBubble({
             >
               {formatTime(message.timestamp)}
             </time>
+
+            {/* Copy — assistant only */}
+            {!isUser && message.status === "sent" && (
+              <button
+                onClick={handleCopy}
+                className="text-[11px] font-medium transition-colors
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
+                style={{
+                  color: copied ? "var(--accent)" : "var(--text-tertiary)",
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                {copied ? "✓ Copied" : "Copy"}
+              </button>
+            )}
 
             {isError && (
               <button

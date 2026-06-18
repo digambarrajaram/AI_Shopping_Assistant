@@ -11,8 +11,9 @@
 :root {
   /* Foundation — deep navy, not pure black */
   --bg: #0B0F19;
-  --surface: #111827;
+  --surface: #101827;
   --surface-raised: #1A2235;
+  --card-bg: #101827;
 
   /* Primary accent — green (brand, controlled usage) */
   --accent: #22C55E;
@@ -30,10 +31,10 @@
   --text-secondary: #9CA3AF;
   --text-tertiary: #6B7280;
 
-  /* Borders — depth through contrast, not visible lines */
-  --border: rgba(255, 255, 255, 0.06);
-  --border-visible: rgba(255, 255, 255, 0.10);
-  --border-active: rgba(255, 255, 255, 0.16);
+  /* Borders — subtle depth, not heavy lines */
+  --border: rgba(255, 255, 255, 0.05);
+  --border-visible: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 255, 255, 0.12);
 
   /* Shadows — Netflix-style layered elevation */
   --shadow-card:
@@ -299,36 +300,40 @@ body {
 
 /* ══════════════════════════════════════════════════════════════════
    FILTER BAR
+   Flat flex layout — label + scrollable chips row.
+   No nesting, no margin hacks, no overlap.
    ══════════════════════════════════════════════════════════════════ */
 
 .filter-bar {
   position: sticky;
   top: 56px;
   z-index: 5;
+  width: 100%;
   background-color: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid var(--border);
 }
 
+.filter-bar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px clamp(1rem, 4vw, 2rem);
+}
+
 .filter-label {
+  flex: 0 0 auto;
   font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-tertiary);
-  flex-shrink: 0;
+  white-space: nowrap;
   display: none;
-}
-
-.filter-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px clamp(1rem, 4vw, 2rem);
 }
 
 @media (min-width: 640px) {
@@ -338,24 +343,23 @@ body {
 }
 
 /* Pills row — horizontally scrollable, never wraps */
-.pills-row {
+.filter-scroll {
+  flex: 1;
+  min-width: 0;
   display: flex;
   gap: 8px;
   align-items: center;
-  flex-wrap: nowrap;         /* NEVER wrap to next line */
-  overflow-x: auto;          /* scroll horizontally */
+  flex-wrap: nowrap;
+  overflow-x: auto;
   overflow-y: hidden;
-  -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
-  scrollbar-width: none;     /* Firefox */
-  -ms-overflow-style: none;  /* IE */
-  padding-bottom: 10px;      /* breathing room if scrollbar appears */
-  /* Allow pills to take remaining space */
-  flex: 1;
-  min-width: 0;              /* CRITICAL — allows flex child to shrink below content size */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
 }
 
-.pills-row::-webkit-scrollbar {
-  display: none;             /* Chrome/Safari */
+.filter-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 /* Individual pill */
@@ -380,12 +384,14 @@ body {
 }
 
 .pill:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
-  border-color: var(--border-active);
-  box-shadow: 0 0 12px rgba(255,255,255,0.04);
+  border-color: var(--border-visible);
   transform: translateY(-1px);
+  transition: all 0.2s ease;
 }
+
+/* Filter scroll — always flex-start so overflow is scrollable both ways */
 
 .pill-icon {
   font-size: 17px;
@@ -457,16 +463,24 @@ button, .pill, a {
   box-shadow: var(--shadow-elevated), var(--shadow-glow-green);
 }
 
-/* Focus ring — green + indigo dual glow */
+/* Focus ring — subtle green, only on keyboard navigation */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-secondary-glow);
 }
 
-/* Chat input glow on focus */
-.chat-input:focus {
-  border-color: var(--accent-secondary) !important;
-  box-shadow: 0 0 0 3px var(--accent-secondary-glow) !important;
+/* Chat input — premium dark, no bright rectangles */
+.chat-input {
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  background: #0f172a;
+  transition: all .2s ease;
+}
+
+.chat-input:focus,
+.chat-input:focus-visible {
+  outline: none;
+  border-color: rgba(16,185,129,.45);
+  box-shadow: 0 0 0 3px rgba(16,185,129,.12);
 }
 
 /* Smooth selection color */
@@ -488,3 +502,29 @@ button, .pill, a {
 .product-card:nth-child(2) { animation-delay: 0.10s; }
 .product-card:nth-child(3) { animation-delay: 0.15s; }
 .product-card:nth-child(4) { animation-delay: 0.20s; }
+
+/* ── Chat bubble entrance ────────────────────────────────────────── */
+@keyframes messageIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.message-enter {
+  animation: messageIn 0.2s ease-out both;
+}
+
+/* ── Focus ring for input container ──────────────────────────────── */
+.chat-input-container:focus-within {
+  border-color: rgba(16,185,129,.45);
+  box-shadow: 0 0 0 3px rgba(16,185,129,.12);
+}
+
+/* ── Chat scrollbar — slimmer for chat panel ─────────────────────── */
+.chat-scroll::-webkit-scrollbar { width: 4px; }
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+}
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.12);
+}

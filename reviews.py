@@ -15,7 +15,7 @@ def get_reviews(product_id: int) -> str:
     try:
         result = (
             db.supabase.table("reviews")
-            .select("id, product_id, rating, comment, reviewer_name, created_at")
+            .select("id, product_id, rating, review_text, reviewer_name")
             .eq("product_id", product_id)
             .execute()
             .data
@@ -48,13 +48,13 @@ def get_reviews(product_id: int) -> str:
 
         # Individual reviews
         for r in result:
-            stars = "⭐" * int(r.get("rating", 0))
+            stars = "⭐" * int(r.get("rating") or 0)
             name = r.get("reviewer_name", "Customer")
-            comment = r.get("comment", "") or ""
+            comment = r.get("review_text", "") or ""
             lines.append(f"{stars} {name}: \"{comment}\"")
 
         return "\n".join(lines) if lines else "No reviews found for this product."
 
-    except Exception as e:
-        logger.error(f"get_reviews failed: {e}")
+    except Exception:
+        logger.error("get_reviews failed", exc_info=True)
         return "Sorry, I couldn't load reviews right now. Please try again shortly."

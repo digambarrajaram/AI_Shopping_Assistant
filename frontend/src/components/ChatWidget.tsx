@@ -6,7 +6,6 @@ import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import DateSeparator from "./DateSeparator";
 import InputBar from "./InputBar";
-import QuickReplies from "./QuickReplies";
 import ErrorBanner from "./ErrorBanner";
 import EmptyState from "./EmptyState";
 
@@ -101,7 +100,8 @@ export default function ChatWidget({
             animate="visible"
             exit="hidden"
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed top-0 right-0 z-40 h-full w-full sm:w-[420px]
+            className="fixed top-0 right-0 z-40 h-dvh w-full
+                       sm:w-[440px] lg:w-[480px]
                        flex flex-col border-l border-[var(--border)]"
             style={{
               backgroundColor: "#080C14",
@@ -180,13 +180,19 @@ export default function ChatWidget({
             {/* Messages */}
             <div
               ref={scrollContainerRef}
-              className="flex-1 overflow-y-auto px-4 py-4"
+              className="flex-1 overflow-y-auto px-4 py-4
+                         scroll-smooth overscroll-contain"
               role="log"
               aria-live="polite"
               aria-label="Chat conversation"
+              style={{
+                scrollBehavior: "smooth",
+                WebkitOverflowScrolling: "touch",
+              }}
             >
-              {!hasUserMessages && !isLoading && <EmptyState />}
-              {!hasUserMessages && <QuickReplies onSelect={onSend} />}
+              {!hasUserMessages && !isLoading && (
+                <EmptyState onSelect={onSend} />
+              )}
 
               {messagesWithSeparators.map((item) => {
                 if (item.type === "date") {

@@ -1,4 +1,5 @@
 import contextvars
+import json
 import logging
 from datetime import datetime, timedelta
 from langchain_core.tools import tool
@@ -58,6 +59,7 @@ def place_order(product_id: int, quantity: int) -> str:
                 stock_col = key
                 break
 
+        available = None  # parsed stock value, reused for decrement below
         if stock_col is not None:
             try:
                 available = int(product[stock_col])
@@ -73,7 +75,11 @@ def place_order(product_id: int, quantity: int) -> str:
                         f"Please reduce your quantity or check back later."
                     )
             except (ValueError, TypeError):
-                pass  # unparseable stock value — proceed cautiously
+                logger.warning(
+                    "Unparseable stock value for product %s (column %r): %r — "
+                    "proceeding without inventory check",
+                    product_id, stock_col, product.get(stock_col),
+                )
 
         unit_price = float(product["price"])
         total_price = round(unit_price * quantity, 2)
@@ -91,13 +97,39 @@ def place_order(product_id: int, quantity: int) -> str:
         response = db.supabase.table("orders").insert(payload).execute()
         order_id = response.data[0]["id"] if response.data else "unknown"
 
+        # Atomically decrement stock now that the order succeeded.
+        # Uses an optimistic-concurrency check (eq on the original stock
+        # value) so two concurrent orders for the same product cannot
+        # silently double-consume inventory.
+        if stock_col is not None and available is not None:
+            try:
+                new_stock = available - quantity
+                update_result = (
+                    db.supabase.table("products")
+                    .update({stock_col: new_stock})
+                    .eq("id", product_id)
+                    .eq(stock_col, available)
+                    .execute()
+                )
+                if not update_result.data:
+                    logger.warning(
+                        "Stock decrement conflict for product %s: "
+                        "expected %s, order #%s placed anyway",
+                        product_id, available, order_id,
+                    )
+            except Exception as stock_err:
+                logger.error(
+                    "Failed to decrement stock for product %s after order #%s: %s",
+                    product_id, order_id, stock_err,
+                )
+
         return (
             f"Order placed: {quantity} x {product['name']} — "
             f"${total_price:.2f} total (Order #{order_id})."
         )
 
     except Exception as e:
-        logger.error(f"place_order failed: {e}")
+        logger.error("place_order failed", exc_info=True)
         return "Sorry, I couldn't complete that order right now. Please try again or contact support."
 
 
@@ -142,10 +174,10 @@ def get_orders() -> str:
                 "estimated_delivery_end":   _format_date(est_end),
             })
 
-        return str(enriched)
+        return json.dumps(enriched, default=str)
 
     except Exception as e:
-        logger.error(f"get_orders failed: {e}")
+        logger.error("get_orders failed", exc_info=True)
         return "Sorry, I couldn't retrieve your orders right now. Please try again or contact support."
 
 
@@ -182,5 +214,5 @@ def cancel_order(order_id: int) -> str:
         )
 
     except Exception as e:
-        logger.error(f"cancel_order failed: {e}")
+        logger.error("cancel_order failed", exc_info=True)
         return "Sorry, I couldn't cancel that order right now. Please try again or contact support."

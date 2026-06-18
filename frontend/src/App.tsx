@@ -69,13 +69,10 @@ export default function App() {
     >
       <Header productCount={products.length} />
 
-      {/* ── Hero banner ─────────────────────────────────────────── */}
-      {/*
-        FIX: Removed overflow:hidden from the section — it was clipping
-        the illustration. Background clipping is handled by the inner bg div.
-        Hero uses a proper CSS grid that collapses to 1 col on narrow screens.
-      */}
-      <section className={`hero-section transition-[margin] duration-300 ${chatOpen ? "lg:mr-[420px]" : ""}`}>
+      {/* ── Page content — shifts when chat opens ───────────────── */}
+      <div className={`transition-[margin] duration-300 ${chatOpen ? "lg:mr-[480px]" : ""}`}>
+        {/* ── Hero banner ─────────────────────────────────────────── */}
+        <section className="hero-section">
         {/* Background layer — clipped separately so it doesn't clip content */}
         <div className="hero-bg" />
 
@@ -138,75 +135,62 @@ export default function App() {
       </section>
 
       {/* ── Category filter ──────────────────────────────────────── */}
-      {/*
-        FIX: The outer wrapper had padding:"1rem 0" but the inner pills-row
-        also had padding, causing double padding. Removed inner padding,
-        kept outer padding on the wrapper instead. Also removed flex-col
-        which was causing the pills to stack vertically on mobile.
-      */}
       {categories.length > 1 && (
-        <div className={`filter-bar transition-[margin] duration-300 ${chatOpen ? "lg:mr-[420px]" : ""}`}>
-          <div className="filter-inner">
+        <div className="filter-bar">
+          <div className="filter-bar-inner">
             <span className="filter-label">Filter</span>
 
-            {/* Pills — horizontally scrollable, never wraps */}
-            <div className="pills-row">
-              <button
-                onClick={() => setActiveCategory(null)}
-                className="pill"
-                style={
-                  !activeCategory
-                    ? {
-                        background: "var(--gradient-pill)",
-                        color: "#fff",
-                        border: "2px solid transparent",
-                        boxShadow: "0 2px 20px var(--accent-glow)",
-                      }
-                    : undefined
-                }
-              >
-                <span className="pill-icon">🏪</span>
-                All
-              </button>
-
-              {categories.map((cat) => {
-                const isActive = activeCategory === cat;
-                const iconKey = Object.keys(CATEGORY_ICONS).find((k) =>
-                  cat.toLowerCase().includes(k),
-                );
-                const icon = iconKey ? CATEGORY_ICONS[iconKey] : "📦";
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(isActive ? null : cat)}
-                    className="pill"
-                    style={
-                      isActive
-                        ? {
-                            backgroundColor: "var(--accent)",
-                            color: "#fff",
-                            border: "2px solid var(--accent)",
-                            boxShadow: "0 2px 16px var(--accent-glow)",
-                          }
-                        : undefined
+            <div className="filter-scroll">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className="pill"
+              style={
+                !activeCategory
+                  ? {
+                      backgroundColor: "var(--accent)",
+                      color: "#fff",
+                      border: "1px solid var(--accent)",
                     }
-                  >
-                    <span className="pill-icon">{icon}</span>
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
+                  : undefined
+              }
+            >
+              <span className="pill-icon">🏪</span>
+              All
+            </button>
+
+            {categories.map((cat) => {
+              const isActive = activeCategory === cat;
+              const iconKey = Object.keys(CATEGORY_ICONS).find((k) =>
+                cat.toLowerCase().includes(k),
+              );
+              const icon = iconKey ? CATEGORY_ICONS[iconKey] : "📦";
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(isActive ? null : cat)}
+                  className="pill"
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: "var(--accent)",
+                          color: "#fff",
+                          border: "1px solid var(--accent)",
+                        }
+                      : undefined
+                  }
+                >
+                  <span className="pill-icon">{icon}</span>
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
           </div>
         </div>
       )}
 
       {/* ── Product grid ─────────────────────────────────────────── */}
-      <main
-        className={`flex-1 px-4 sm:px-6 py-6 transition-[margin] duration-300 ${
-          chatOpen ? "lg:mr-[420px]" : ""
-        }`}
-      >
+      <main className="flex-1 px-4 sm:px-6 py-6">
         <div className="max-w-[1280px] mx-auto">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -214,7 +198,9 @@ export default function App() {
                 className="text-[16px] font-semibold text-[var(--text-primary)]"
                 style={{ fontFamily: "'Inter', sans-serif" }}
               >
-                {activeCategory ? activeCategory : "All Products"}
+                {activeCategory
+                  ? activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)
+                  : "All Products"}
               </h2>
               <p className="text-[13px] text-[var(--text-tertiary)] mt-0.5">
                 {filteredProducts.length} item{filteredProducts.length !== 1 ? "s" : ""}
@@ -229,6 +215,22 @@ export default function App() {
           />
         </div>
       </main>
+
+        {/* ── Footer ─────────────────────────────────────────────── */}
+        <footer className="border-t border-[var(--border)] py-6 px-4">
+          <div className="max-w-[1280px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[13px] text-[var(--text-tertiary)]">
+            <span style={{ fontFamily: "'Inter', sans-serif" }}>
+              © {new Date().getFullYear()} ShopAssist. All rights reserved.
+            </span>
+            <span style={{ fontFamily: "'Inter', sans-serif" }}>
+              Built by{" "}
+              <span className="text-[var(--text-secondary)] font-medium">
+                Digambar Rajaram
+              </span>
+            </span>
+          </div>
+        </footer>
+      </div>
 
       {/* ── Chat ─────────────────────────────────────────────────── */}
       <ChatToggle

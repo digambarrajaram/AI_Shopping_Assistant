@@ -7,16 +7,45 @@ export interface ParsedProduct {
   category: string;
   isOrganic: boolean;
   imageUrl?: string;
+  rating?: number | null;
+  reviewCount?: number | null;
 }
 
 interface ProductListProps {
   products: ParsedProduct[];
 }
 
-const INITIAL_SHOW = 12;
+const INITIAL_SHOW = 6;
 
 function formatPrice(price: number): string {
   return `$${price.toFixed(2)}`;
+}
+
+function StarRating({ rating, reviewCount }: { rating?: number | null; reviewCount?: number | null }) {
+  if (!rating || rating === 0) return null;
+  const stars = "⭐".repeat(Math.min(5, Math.round(rating)));
+  const count = reviewCount ?? 0;
+  return (
+    <span className="text-[12px]" aria-label={`${rating.toFixed(1)} out of 5`}>
+      {stars}{" "}
+      <span className="text-[var(--text-secondary)] font-medium">{rating.toFixed(1)}</span>
+      <span className="text-[var(--text-tertiary)]">
+        {" "}({count} review{count !== 1 ? "s" : ""})
+      </span>
+    </span>
+  );
+}
+
+function LeafPlaceholder() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" opacity={0.3}>
+      <path
+        d="M16 4C9.37 4 6 8.92 6 13.6c0 4.68 3.37 8 6.8 9.8.47.26.8.45 1.2.6v2h4v-2c.4-.15.73-.34 1.2-.6C22.63 21.6 26 18.28 26 13.6 26 8.92 22.63 4 16 4z"
+        fill="#10B981"
+      />
+      <path d="M16 7c-2 0-3 1.5-3 4h6c0-2.5-1-4-3-4z" fill="#6EE7B7" />
+    </svg>
+  );
 }
 
 /** Group products by category, preserving order of first appearance. */
@@ -40,10 +69,15 @@ function groupByCategory(
 
 export default function ProductList({ products }: ProductListProps) {
   const [expanded, setExpanded] = useState(false);
+  const [imgErrors, setImgErrors] = useState<Set<string>>(new Set());
 
   const visible = expanded ? products : products.slice(0, INITIAL_SHOW);
   const hiddenCount = products.length - INITIAL_SHOW;
   const grouped = groupByCategory(visible);
+
+  const handleImgError = (name: string) => {
+    setImgErrors((prev) => new Set(prev).add(name));
+  };
 
   return (
     <div className="mt-2 space-y-3">
@@ -51,45 +85,42 @@ export default function ProductList({ products }: ProductListProps) {
         <div key={category}>
           {/* Category header */}
           <div
-            className="sticky top-0 z-[1] text-[12px] font-semibold uppercase tracking-wider
-                       text-[var(--text-tertiary)] pb-1 mb-2 border-b border-[var(--border)]"
+            className="sticky top-0 z-[1] text-[11px] font-semibold uppercase tracking-wider
+                       text-[var(--text-tertiary)] pb-1.5 mb-2 border-b border-[var(--border)]"
             style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {category}
           </div>
 
-          {/* Product rows */}
-          <div className="space-y-1">
+          {/* Product cards */}
+          <div className="space-y-2">
             {items.map((product, idx) => (
               <div
                 key={`${product.name}-${idx}`}
-                className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-xl
-                           hover:bg-[var(--bg)] transition-colors duration-100"
+                className="flex items-start gap-3 p-3 -mx-1 rounded-xl
+                           hover:bg-[var(--bg)]/60 transition-colors duration-150
+                           border border-transparent hover:border-[var(--border)]"
               >
                 {/* Thumbnail */}
-                {product.imageUrl ? (
-                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--bg)] border border-[var(--border)]">
+                {product.imageUrl && !imgErrors.has(product.name) ? (
+                  <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[var(--bg)] border border-[var(--border)]">
                     <img
                       src={product.imageUrl}
                       alt={product.name}
                       loading="lazy"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
+                      onError={() => handleImgError(product.name)}
                     />
                   </div>
                 ) : (
-                  <div className="w-12 h-12 rounded-lg flex-shrink-0 bg-[var(--bg)] border border-[var(--border)] flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[var(--border)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                  <div className="w-14 h-14 rounded-xl flex-shrink-0 bg-[var(--bg)] border border-[var(--border)] flex items-center justify-center">
+                    <LeafPlaceholder />
                   </div>
                 )}
 
-                {/* Name + description */}
+                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span
                       className="text-[14px] font-semibold text-[var(--text-primary)]"
                       style={{ fontFamily: "'Inter', sans-serif" }}
@@ -110,22 +141,26 @@ export default function ProductList({ products }: ProductListProps) {
                   </div>
                   {product.description && (
                     <p
-                      className="text-[12px] text-[var(--text-secondary)] line-clamp-1 mt-0.5"
+                      className="text-[12px] text-[var(--text-secondary)] line-clamp-2 mt-0.5 leading-relaxed"
                       style={{ fontFamily: "'Inter', sans-serif" }}
-                      title={product.description}
                     >
                       {product.description}
                     </p>
                   )}
+                  <div className="flex items-center gap-3 mt-1">
+                    <StarRating rating={product.rating} reviewCount={product.reviewCount} />
+                  </div>
                 </div>
 
-                {/* Price */}
-                <span
-                  className="text-[13px] font-semibold text-[var(--accent)] tabular-nums whitespace-nowrap flex-shrink-0"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  {formatPrice(product.price)}
-                </span>
+                {/* Price + actions */}
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <span
+                    className="text-[14px] font-bold text-[var(--accent)] tabular-nums"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {formatPrice(product.price)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
@@ -137,7 +172,7 @@ export default function ProductList({ products }: ProductListProps) {
         <button
           onClick={() => setExpanded(true)}
           className="w-full text-[13px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]
-                     py-2 rounded-lg hover:bg-[var(--accent-soft)]/30 transition-colors
+                     py-2.5 rounded-xl hover:bg-[var(--accent-soft)]/20 transition-all
                      focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
@@ -204,7 +239,7 @@ export function parseProductsFromText(text: string): ParsedProduct[] {
       description: desc,
       category: currentCategory,
       isOrganic: /organic/i.test(name),
-      imageUrl: undefined, // filled in by MessageBubble
+      imageUrl: undefined,
     });
   }
 

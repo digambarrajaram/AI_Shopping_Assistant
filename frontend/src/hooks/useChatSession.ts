@@ -77,6 +77,9 @@ export function useChatSession() {
           ...(response.products && response.products.length > 0
             ? { products: response.products }
             : {}),
+          ...(response.orders && response.orders.length > 0
+            ? { orders: response.orders }
+            : {}),
         };
 
         setState((prev) => ({

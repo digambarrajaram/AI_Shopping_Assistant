@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 interface InputBarProps {
   onSend: (text: string) => void;
   disabled?: boolean;
-  /** Pre-fill the input with text (not auto-sent). Cleared after applied. */
   prefill?: string | null;
   onPrefillApplied?: () => void;
 }
@@ -18,16 +17,15 @@ export default function InputBar({
   onPrefillApplied,
 }: InputBarProps) {
   const [text, setText] = useState("");
+  const [hovered, setHovered] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prefillAppliedRef = useRef(false);
 
-  // Apply prefill when it arrives
   useEffect(() => {
     if (prefill && !prefillAppliedRef.current) {
       setText(prefill);
       prefillAppliedRef.current = true;
       onPrefillApplied?.();
-      // Focus the textarea so user can review/edit
       requestAnimationFrame(() => {
         textareaRef.current?.focus();
         textareaRef.current?.setSelectionRange(prefill.length, prefill.length);
@@ -35,11 +33,8 @@ export default function InputBar({
     }
   }, [prefill, onPrefillApplied]);
 
-  // Reset prefill tracking when prefill clears
   useEffect(() => {
-    if (!prefill) {
-      prefillAppliedRef.current = false;
-    }
+    if (!prefill) prefillAppliedRef.current = false;
   }, [prefill]);
 
   const charCount = text.length;
@@ -47,7 +42,6 @@ export default function InputBar({
   const overLimit = charCount > MAX_LENGTH;
   const canSend = charCount > 0 && !overLimit && !disabled;
 
-  // Auto-resize textarea up to 4 lines
   const resize = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -78,66 +72,76 @@ export default function InputBar({
     [handleSend],
   );
 
-  // Auto-focus on mount
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
 
   return (
     <div
-      className="border-t border-[var(--border)] bg-white/80 backdrop-blur-md"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="border-t border-[var(--border)]"
+      style={{
+        background: "rgba(8,12,20,0.9)",
+        backdropFilter: "blur(24px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
     >
-      <div className="px-4 py-3">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about products, orders, or our store…"
-              rows={1}
-              maxLength={MAX_LENGTH + 20}
-              disabled={disabled}
-              className="chat-input w-full resize-none rounded-xl border border-[var(--border)]
-                         bg-[var(--surface)] px-4 py-2.5 text-[15px] leading-[22px]
-                         text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]
-                         focus:outline-none
-                         disabled:opacity-50 disabled:cursor-not-allowed
-                         transition-shadow"
-              style={{ fontFamily: "'Inter', sans-serif", minHeight: "44px" }}
-              aria-label="Type a message"
-            />
+      <div className="px-3 py-2.5">
+        <div
+          className="chat-input flex items-center gap-2 pl-4 pr-1.5 py-1"
+        >
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask about products, reviews, or place an order…"
+            rows={1}
+            maxLength={MAX_LENGTH + 20}
+            disabled={disabled}
+            className="flex-1 resize-none bg-transparent py-1 text-[14px] leading-[22px]
+                       text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              minHeight: "26px",
+              outline: "none",
+              border: "none",
+            }}
+            aria-label="Type a message"
+          />
 
-            {showCharCount && (
-              <span
-                className={`absolute bottom-1.5 right-3 text-[11px] ${
-                  overLimit
-                    ? "text-[var(--danger)] font-semibold"
-                    : "text-[var(--text-tertiary)]"
-                }`}
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                {charCount}/{MAX_LENGTH}
-              </span>
-            )}
-          </div>
+          {showCharCount && (
+            <span
+              className={`text-[10px] flex-shrink-0 ${
+                overLimit
+                  ? "text-[var(--danger)] font-semibold"
+                  : "text-[var(--text-tertiary)]"
+              }`}
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {charCount}/{MAX_LENGTH}
+            </span>
+          )}
 
           <button
             onClick={handleSend}
             disabled={!canSend}
-            className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center
-                       transition-all duration-150
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
+                       transition-all duration-200
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
-                       disabled:opacity-40 disabled:cursor-not-allowed"
+                       disabled:opacity-25 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: canSend ? "var(--accent)" : "var(--border)",
+              backgroundColor: canSend ? "var(--accent)" : "transparent",
+              transform: canSend && hovered ? "scale(1.08)" : "scale(1)",
             }}
             aria-label="Send message"
           >
+            {/* Paper plane icon */}
             <svg
-              className="w-5 h-5 text-white"
+              className="w-4 h-4"
+              style={{ color: canSend ? "#fff" : "var(--text-tertiary)" }}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -147,7 +151,14 @@ export default function InputBar({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M5 12h14M12 5l7 7-7 7"
+                d="M12 19V5m0 0l-7 7m7-7l7 7"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 12h14"
+                opacity={canSend ? 0 : 1}
               />
             </svg>
           </button>

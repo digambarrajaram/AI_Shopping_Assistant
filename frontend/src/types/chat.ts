@@ -8,6 +8,8 @@ export interface Message {
   status: "sending" | "sent" | "error";
   /** Structured product data from the backend — used directly, never regex-parsed from text. */
   products?: ChatProduct[];
+  /** Structured order data from the backend — used directly. */
+  orders?: ChatOrder[];
 }
 
 export interface ChatProduct {
@@ -19,6 +21,16 @@ export interface ChatProduct {
   imageUrl: string;
   rating?: number | null;
   reviewCount?: number | null;
+}
+
+export interface ChatOrder {
+  id: number;
+  productName: string;
+  quantity: number;
+  totalPrice: number;
+  orderedAt: string;
+  estimatedDeliveryStart?: string | null;
+  estimatedDeliveryEnd?: string | null;
 }
 
 export type ConnectionStatus = "connected" | "error" | "reconnecting";
@@ -39,4 +51,5 @@ export interface ChatResponse {
   reply: string;
   session_id: string;
   products?: ChatProduct[] | null;
+  orders?: ChatOrder[] | null;
 }

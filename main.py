@@ -30,6 +30,109 @@ Fixes applied (2026-06-18) — security review & hardening:
   FIX 11 — Request body size middleware (10 KB limit) + Pydantic field validators.
   FIX 12 — search_products optional args type-validated; max_price accepts int|float.
   FIX 13 — Product tools capped at 50 rows (get_products / search_products).
+
+Fixes applied (2026-06-18) — LLM config correction:
+  FIX 14 — Removed explicit temperature=0 on ChatGoogleGenerativeAI.
+           Google's guidance for Gemini 3.x models is to leave
+           temperature/top_p/top_k at their defaults — overriding to a
+           low value risks infinite loops, degraded reasoning, and task
+           failure. The model now runs with its default temperature (1.0).
+  FIX 15 — History trimming changed from raw index slice to safe-trim:
+           _safe_trim() walks backward to a HumanMessage, a standalone
+           AIMessage, or an AIMessage-with-tool_calls boundary so a
+           ToolMessage is never separated from the AIMessage that
+           requested it. Prevents llm_error desyncs under Gemini.
+  FIX 16 — search_products now populates the structured products payload.
+           execute_tool sets products_were_listed and stashes filter args
+           for both get_products and search_products.  /chat returns the
+           filtered set (category / max_price / query) so the frontend
+           receives a non-null products array for filtered searches.
+  FIX 17 — Replaced plain-substring ID-leak signals ("(id ", "id: ",
+           "id=") with a word-boundary regex (_ID_LEAK_RE) so ordinary
+           words ending in "id" (Valid, Solid, Avoid, Grid, etc.) no
+           longer false-trigger output_leak_blocked.  Still catches real
+           leaks like "id: 5", "id=3", and "(ID 10)".
+  FIX 18 — place_order now decrements the product stock column after a
+           successful order insert.  Uses an optimistic-concurrency check
+           (eq on the original stock value) so two concurrent orders
+           cannot silently double-consume inventory.  If the update
+           conflicts, a warning is logged and the order stands.
+  FIX 19 — Unparseable stock values are now logged as warnings (product_id,
+           column name, and raw value) instead of being silently swallowed
+           by a bare except.  The order still proceeds, but the data
+           corruption is visible in logs/shopassist.log.
+  FIX 20 — get_products / search_products now use defensive per-row price
+           formatting (_safe_price helper) and .get() for all field access
+           so one malformed row (null price, missing column, non-numeric
+           value) no longer crashes the entire catalog/search response.
+  FIX 21 — get_reviews star display changed from int(r.get("rating", 0))
+           to int(r.get("rating") or 0) so a review with rating: null
+           (key present, value None) no longer raises TypeError and
+           crashes the whole review list.  The average computation already
+           correctly excludes null ratings.
+  FIX 22 — get_orders now returns json.dumps(enriched, default=str)
+           instead of str(enriched) so the model receives valid JSON
+           (double-quoted) rather than Python repr syntax.
+  FIX 23 — Removed GROQ_API_KEY startup validation (db.py) since Groq is
+           no longer the active provider.  The env var is still loaded but
+           marked as an optional future fallback.  Removed the unused
+           langchain_groq import and updated the stale "FIX 1 & 3" comment
+           above the LLM block to reflect the current Gemini config.
+  FIX 24 — CORS origins are now read from ALLOWED_ORIGINS (comma-separated
+           env var, defaulting to the localhost:5173 origins) so the same
+           code works in dev and any deployed environment without a code
+           change.
+  FIX 25 — Documented single-process constraint on the three in-memory
+           state dicts (_injection_counts, _memory_store, _request_times).
+           Each now carries a comment that the app MUST run as a single
+           worker until these are migrated to a shared store (Redis/DB).
+  FIX 26 — validate_tool_call now skips the isinstance type check when an
+           optional field is explicitly passed as null (None), treating it
+           as "not provided" instead of rejecting the call.  Required
+           fields with null still fail validation.
+  FIX 27 — validate_tool_call now defensively coerces whole-number floats
+           to int (e.g. 5.0 → 5) before the isinstance check, with a
+           tool_arg_float_coerced debug log.  Protects against Gemini's
+           LangChain integration occasionally representing integer tool
+           args as floats.
+  FIX 28 — validate_tool_call hardened for AWS Bedrock Nova models:
+           added tool_arg_debug log (raw arg types on every call),
+           actual_type/actual_value in type-error logs, string→int and
+           string→float coercion, and int→float widening.  The section
+           comment now accurately reflects the Bedrock provider.
+  FIX 29 — Agent loop no longer kills the conversation on Bedrock API
+           tool_use_failed / invalid_request_error exceptions (e.g.,
+           Nova calling get_reviews with no args).  These are treated as
+           recoverable model mistakes — the loop continues to the next
+           iteration.  Also, validate_tool_call now silently drops bad
+           optional fields instead of rejecting the call, preventing
+           Nova from burning iterations retrying with the same wrong type.
+  FIX 30 — _safe_trim() now ensures the window always starts with a
+           HumanMessage (phase 2 walk-back).  Bedrock Converse rejects
+           conversations starting with AIMessage/ToolMessage.  Also,
+           run_output_guardrail now strips <thinking>…</thinking> blocks
+           injected by Nova's reasoning mode before any guardrail checks.
+  FIX 31 — get_reviews column name corrected from "comment" to
+           "review_text" to match the actual Supabase reviews table
+           schema.  Removed non-existent "created_at" from the SELECT.
+           This was the root cause of all "couldn't load reviews" errors.
+
+Fixes applied (2026-06-18) — round 3 (robustness & structured data):
+  FIX 32 — All broad except blocks in orders.py, products.py, and
+           reviews.py now log with exc_info=True so full tracebacks
+           land in logs/shopassist.log (was bare logger.error(str(e))).
+  FIX 33 — System prompt now includes an ORDERING section: the assistant
+           must never ask the customer for a product ID — it already has
+           the ID from search results and must call place_order directly.
+  FIX 34 — Structured orders payload added: Session.orders_were_listed
+           flag (set when get_orders runs), _build_orders_payload()
+           helper with delivery estimates, orders: list[dict] field on
+           ChatResponse.  The /chat endpoint now returns real order cards
+           the same way it returns product cards.  System prompt also
+           adds ORDER HISTORY FORMAT instructions for clean prose output.
+  FIX 35 — Safe-trim verified in place: _safe_trim() with Phase 1
+           (tool-call boundary) and Phase 2 (HumanMessage for Bedrock
+           Converse) confirmed active in Session.add_message.
 """
 
 import os
@@ -40,10 +143,12 @@ import json
 import logging
 import logging.handlers
 from collections import defaultdict
-from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import (
     ToolMessage, AIMessage, HumanMessage, SystemMessage, BaseMessage
 )
+from langchain_aws import ChatBedrockConverse
+
 
 import products
 import orders
@@ -79,6 +184,9 @@ def log(event: str, session_id: str, **data):
     logger.info(json.dumps(record))
 
 
+# ⚠️ In-process state — NOT multi-worker safe.
+# The app MUST run as a single process/worker until these are migrated
+# to a shared store (Redis, DB, etc.).  See FIX 25.
 _injection_counts: dict[str, int] = defaultdict(int)
 _blocked_sessions: set[str] = set()
 INJECTION_BLOCK_THRESHOLD = 3
@@ -101,10 +209,13 @@ def is_session_blocked(session_id: str) -> bool:
 
 # =============================================================================
 # SESSION MANAGEMENT
-# FIX 1: MAX_HISTORY_MESSAGES reduced from 20 → 10 to shrink context payload
+# FIX 2 / FIX 30: Safe trimming — never splits tool-call/tool-result
+#         groups AND always starts on a HumanMessage.  The Bedrock
+#         Converse API rejects conversations that don't start with a
+#         user message.
 # =============================================================================
 
-MAX_HISTORY_MESSAGES = 10      # was 20 — keeps token count well under 6000 TPM
+MAX_HISTORY_MESSAGES = 10      # target window — safe-trim may keep more
 SESSION_TTL_SECONDS  = 1800
 
 
@@ -112,18 +223,55 @@ class Session:
     def __init__(self):
         self.messages: list[BaseMessage] = []
         self.last_active: float = time.time()
-        self.products_were_listed: bool = False   # set by execute_tool
+        self.products_were_listed: bool = False     # set by execute_tool
+        self.orders_were_listed: bool = False       # set by execute_tool
+        self.last_search_type: str | None = None    # "get_products" | "search_products"
+        self.last_search_params: dict | None = None # filter args for search_products
+
+    def _safe_trim(self) -> None:
+        """Trim oldest messages without splitting tool-call/tool-result
+        pairs, and ensure the window always starts with a HumanMessage.
+
+        The Bedrock Converse API requires conversations to start with a
+        user message — SystemMessage is passed separately.  Stopping at
+        an AIMessage (even a safe one) causes a ValidationException."""
+        if len(self.messages) <= MAX_HISTORY_MESSAGES:
+            return
+
+        trim_idx = len(self.messages) - MAX_HISTORY_MESSAGES
+
+        # Phase 1 — walk back to a safe tool-call boundary
+        while trim_idx > 0:
+            msg = self.messages[trim_idx]
+            if isinstance(msg, HumanMessage):
+                break
+            if isinstance(msg, AIMessage):
+                if not msg.tool_calls:
+                    break                     # standalone response
+                # AIMessage WITH tool_calls — its ToolMessages are all
+                # still in the window.  But keep walking for Bedrock.
+                break
+            trim_idx -= 1
+
+        # Phase 2 — ensure the window starts with a HumanMessage.
+        # Bedrock Converse rejects conversations starting with AIMessage
+        # or ToolMessage (SystemMessage is passed out-of-band).
+        while trim_idx > 0 and not isinstance(self.messages[trim_idx], HumanMessage):
+            trim_idx -= 1
+
+        self.messages = self.messages[trim_idx:]
 
     def add_message(self, message: BaseMessage):
         self.messages.append(message)
         if len(self.messages) > MAX_HISTORY_MESSAGES:
-            self.messages = self.messages[-MAX_HISTORY_MESSAGES:]
+            self._safe_trim()
         self.last_active = time.time()
 
     def is_expired(self) -> bool:
         return (time.time() - self.last_active) > SESSION_TTL_SECONDS
 
 
+# ⚠️ In-process state — NOT multi-worker safe (see FIX 25).
 _memory_store: dict[str, Session] = {}
 
 
@@ -140,8 +288,10 @@ def get_session(session_id: str) -> Session:
 
 # =============================================================================
 # LLM SETUP
-# FIX 1 & 3: Switched to llama-3.1-8b-instant (lower TPM cost, faster),
-#            max_tokens reduced from 1024 → 512
+# FIX 28: Switched to ChatBedrockConverse (apac.amazon.nova-lite-v1:0).
+#          AWS credentials are read from the default boto3 chain
+#          (~/.aws/credentials or env vars).  The commented-out blocks
+#          below are kept as fallback references; they are not active.
 # =============================================================================
 
 tools = [
@@ -154,12 +304,33 @@ tools = [
 ]
 tools_lookup = {t.name: t for t in tools}
 
-llm = ChatGroq(
-    model="llama-3.1-8b-instant",   # was qwen/qwen3-32b — 5× lower token cost
-    temperature=0,
-    max_tokens=512,                  # was 1024 — tighter budget per response
-    max_retries=2,
+#llm = ChatGroq(
+#    model="llama-3.1-8b-instant",   # was qwen/qwen3-32b — 5× lower token cost
+#    temperature=0,
+#    max_tokens=512,                  # was 1024 — tighter budget per response
+#    max_retries=2,
+#)
+
+#llm = ChatGoogleGenerativeAI(
+#    model="gemini-3.5-flash",
+#    max_tokens=None,
+#    timeout=None,
+#    max_retries=2,
+#)
+
+llm = ChatBedrockConverse(
+    model_id="apac.amazon.nova-lite-v1:0",
+    # region_name=...,
+    # aws_access_key_id=...,
+    # aws_secret_access_key=...,
+    # aws_session_token=...,
+    temperature=0.4,
+    # max_tokens=...,
+    # other params...
 )
+
+
+
 llm_with_tools = llm.bind_tools(tools)
 
 
@@ -208,10 +379,30 @@ SYSTEM_GUARDRAIL = SystemMessage(content=(
     "## TOOL SECRECY\n"
     "Never mention any function name, tool name, or API call in any response, even when "
     "declining a request. Refer only to capabilities in plain language.\n"
-    # FIX 2: explicit ban on exposing numeric DB identifiers
     "Never include internal product IDs, database record numbers, or any numeric "
     "identifier (e.g. 'ID 10', 'id: 5') in any response. "
     "Refer to products by name only.\n\n"
+
+    "## TOOL USAGE — match user intent to the right tool\n"
+    "Always call a tool first before telling the user you can't help. Map intents:\n"
+    "- 'show products' / 'browse' / 'catalog' / 'what do you have' → get_products\n"
+    "- 'highest/top/best rated' → get_products(sort_by_rating=\"desc\"), list top few\n"
+    "- 'lowest/worst/low rating' (plural) → get_products(sort_by_rating=\"asc\"), list bottom few\n"
+    "- 'which product has the lowest rating' (singular) → get_products(sort_by_rating=\"asc\"),\n"
+    "  then name only the SINGLE lowest-rated product. Do not list categories or multiples.\n"
+    "- 'under $X' / 'honey' / 'organic' / product name / category → search_products\n"
+    "  If search returns no results, try a broader search or suggest browsing by\n"
+    "  category instead of giving up. For 'healthy', try 'organic' or list categories.\n"
+    "- 'product reviews' (no product named) → get_products first, show ratings,\n"
+    "  then ask which one. NEVER ask 'which product?' without showing the catalog.\n"
+    "- 'reviews for <product>' → get_reviews with the product ID you already have\n"
+    "- 'order <name>' / 'buy <name>' → search_products to find it, then place_order\n"
+    "  immediately. NEVER ask the customer for a product ID — you have it from search.\n"
+    "- 'my orders' / 'past orders' / 'order history' / 'track order' → get_orders\n"
+    "- 'cheapest' / 'most expensive' → get_products, then compare prices yourself\n"
+    "- 'compare X and Y' → search_products for each, then compare\n"
+    "- 'return policy' / 'shipping' / 'cancel order' → answer from STORE POLICIES\n"
+    "  below; do NOT call tools for these.\n\n"
 
     "## PERSONA\n"
     "Always identify as ShopAssist. Never claim to be human or any other AI system. "
@@ -254,7 +445,13 @@ SYSTEM_GUARDRAIL = SystemMessage(content=(
     "data — no tool provides this. If asked about best-sellers, trending "
     "items, or what's popular, say plainly that you don't have that "
     "information, and offer to show reviews/ratings instead if relevant. "
-    "Never invent a ranking or sales figures.\n"
+    "Never invent a ranking or sales figures.\n\n"
+
+    "## ORDER HISTORY FORMAT\n"
+    "When showing past orders, list each order on its own line as:\n"
+    "<product> — qty <n> — $<total> — ordered <date> — delivery <start>–<end>\n"
+    "Never repeat labels like 'Total Price' or 'Products' as headings. "
+    "Present the list as plain prose, not a table or card layout.\n"
 ))
 
 
@@ -298,6 +495,7 @@ _INJECTION_SIGNALS = [
 
 RATE_LIMIT_MAX    = 15
 RATE_LIMIT_WINDOW = 60
+# ⚠️ In-process state — NOT multi-worker safe (see FIX 25).
 _request_times: dict[str, list[float]] = defaultdict(list)
 
 
@@ -412,24 +610,97 @@ def validate_tool_call(tool_name: str, args: dict, session_id: str) -> tuple[boo
         log("tool_blocked", session_id, tool=tool_name, reason="not_in_allowlist")
         return False, f"Tool '{tool_name}' is not authorised."
 
+    # Debug: log raw arg types so we can see what the LLM is actually
+    # passing.  Compact: {"field": "type"} mapping.
+    arg_types = {
+        k: type(v).__name__ for k, v in args.items()
+    }
+    log("tool_arg_debug", session_id, tool=tool_name, arg_types=arg_types)
+
     schema = _TOOL_ARG_SCHEMA.get(tool_name, {})
     for field in schema.get("required", []):
         if field not in args:
             log("tool_arg_missing", session_id, tool=tool_name, missing=field)
             return False, f"Missing required argument '{field}' for tool '{tool_name}'."
 
+    required = set(schema.get("required", []))
     for field, expected_type in _TOOL_ARG_TYPES.get(tool_name, {}).items():
-        if field in args and not isinstance(args[field], expected_type):
+        if field not in args:
+            continue
+
+        val = args[field]
+
+        # Skip type check for explicit null on optional fields —
+        # null is equivalent to "not provided" for non-required args.
+        if val is None and field not in required:
+            continue
+
+        # ── Defensive coercions (Bedrock Nova models occasionally pass
+        #     values in surprising types) ─────────────────────────────
+
+        # Coerce whole-number floats → int (e.g. 5.0 → 5)
+        expects_int = (
+            expected_type is int
+            or (isinstance(expected_type, tuple) and int in expected_type)
+        )
+        if isinstance(val, float) and expects_int and val.is_integer():
+            log("tool_arg_float_coerced", session_id, tool=tool_name,
+                field=field, original=val, coerced=int(val))
+            args[field] = val = int(val)
+
+        # Coerce numeric strings → int for int-expected fields
+        if isinstance(val, str) and expects_int:
+            try:
+                coerced = int(val)
+                log("tool_arg_str_coerced", session_id, tool=tool_name,
+                    field=field, original=repr(val), coerced=coerced)
+                args[field] = val = coerced
+            except (ValueError, TypeError):
+                pass
+
+        # Coerce numeric strings → float for float-accepting fields
+        expects_float = (
+            expected_type is float
+            or (isinstance(expected_type, tuple) and float in expected_type)
+        )
+        if isinstance(val, str) and expects_float:
+            try:
+                coerced = float(val)
+                log("tool_arg_str_coerced", session_id, tool=tool_name,
+                    field=field, original=repr(val), coerced=coerced)
+                args[field] = val = coerced
+            except (ValueError, TypeError):
+                pass
+
+        # Coerce int → float for float-expected fields (harmless widening)
+        if isinstance(val, int) and expected_type is float:
+            args[field] = val = float(val)
+
+        # ── Type check ──────────────────────────────────────────────
+        if not isinstance(val, expected_type):
             type_name = (
                 " | ".join(t.__name__ for t in expected_type)
                 if isinstance(expected_type, tuple)
                 else expected_type.__name__
             )
+            # For optional (non-required) fields: silently drop the
+            # bad arg and keep going.  Nova/Bedrock models sometimes
+            # retry with the same wrong type despite error feedback,
+            # which burns iterations.  Dropping the filter is better
+            # than returning SAFE_FALLBACK.
+            if field not in required:
+                log("tool_arg_dropped", session_id, tool=tool_name,
+                    field=field, expected=type_name,
+                    actual_type=type(val).__name__, actual_value=repr(val))
+                del args[field]
+                continue
+            # Required field with wrong type → hard error
             log("tool_arg_type_error", session_id, tool=tool_name,
-                field=field, expected=type_name)
+                field=field, expected=type_name,
+                actual_type=type(val).__name__, actual_value=repr(val))
             return False, (
                 f"Argument '{field}' for tool '{tool_name}' must be "
-                f"{type_name}, got {type(args[field]).__name__}."
+                f"{type_name}, got {type(val).__name__}."
             )
 
     return True, ""
@@ -446,8 +717,12 @@ def execute_tool(tool_name: str, args: dict, tool_call_id: str,
     try:
         output = tools_lookup[tool_name].invoke(args)
         log("tool_executed", session_id, tool=tool_name)
-        if tool_name == "get_products":
+        if tool_name in ("get_products", "search_products"):
             session.products_were_listed = True
+            session.last_search_type = tool_name
+            session.last_search_params = args if args else None
+        elif tool_name == "get_orders":
+            session.orders_were_listed = True
     except Exception as exc:
         log("tool_error", session_id, tool=tool_name, error=str(exc))
         output = f"That tool is temporarily unavailable. Please try again or contact {db.SUPPORT_EMAIL}."
@@ -472,6 +747,8 @@ def execute_tool(tool_name: str, args: dict, tool_call_id: str,
 # LAYER 4 — OUTPUT GUARDRAIL
 # FIX 2: Added ID leak patterns to _OUTPUT_LEAK_SIGNALS so "(ID 10)",
 #         "id: 5", "id=3" etc. are caught before reaching the user.
+# FIX 17: Replaced plain-substring ID patterns with a word-boundary regex
+#         so words like "Valid:", "Solid:", "Avoid:" don't false-trigger.
 # =============================================================================
 
 _OUTPUT_LEAK_SIGNALS = [
@@ -482,16 +759,33 @@ _OUTPUT_LEAK_SIGNALS = [
     # meta references
     "system prompt", "system message", "guardrail",
     "my instructions", "i was instructed", "i am programmed",
-    # FIX 2: numeric database ID patterns leaked by the LLM
-    "(id ",     # catches "(ID 10)", "(id 5)"
-    "id: ",     # catches "id: 10"
-    "id=",      # catches "id=10"
 ]
+
+# Word-boundary regex for numeric ID leaks — catches "id: 5", "id=3",
+# "(id 10)", "(ID 5)" without matching "Valid:", "Solid:", "Avoid:", etc.
+_ID_LEAK_RE = re.compile(
+    r'\bid\s*[:=]\s*\d'    # id:5  id = 10  id=3
+    r'|\(\s*id\s+\d',       # (id 5)  (ID 10)
+    re.IGNORECASE,
+)
+
+# Nova / Bedrock reasoning models inject <thinking>…</thinking> blocks
+# into the visible response.  Strip them before any guardrail checks so
+# internal reasoning (which may contain tool names, IDs, etc.) never
+# reaches the user.
+_THINKING_RE = re.compile(r'<thinking>.*?</thinking>', re.DOTALL | re.IGNORECASE)
 
 MAX_OUTPUT_LENGTH = 1500
 
 
 def run_output_guardrail(text: str, session_id: str) -> str:
+    # Strip Nova reasoning blocks before anything else
+    stripped = _THINKING_RE.sub('', text).strip()
+    if stripped != text:
+        log("thinking_stripped", session_id,
+            original_len=len(text), stripped_len=len(stripped))
+        text = stripped
+
     lower = text.lower()
 
     for signal in _OUTPUT_LEAK_SIGNALS:
@@ -501,6 +795,15 @@ def run_output_guardrail(text: str, session_id: str) -> str:
                 "I can help you browse our inventory, check reviews, "
                 "or place an order. What would you like to do?"
             )
+
+    # Regex-based ID leak check — word-boundary anchored to avoid
+    # false-positives on ordinary words containing "id".
+    if _ID_LEAK_RE.search(lower):
+        log("output_leak_blocked", session_id, signal="id_leak_re", preview=text[:120])
+        return (
+            "I can help you browse our inventory, check reviews, "
+            "or place an order. What would you like to do?"
+        )
 
     pii_found = detect_pii(text)
     if pii_found:
@@ -542,7 +845,16 @@ def run_agent(query: str, session_id: str) -> str:
         try:
             ai_msg = llm_with_tools.invoke(execution_messages)
         except Exception as exc:
-            log("llm_error", session_id, error=str(exc))
+            err_str = str(exc)
+            log("llm_error", session_id, error=err_str)
+            # Bedrock/Nova sometimes generates malformed tool calls
+            # (e.g. get_reviews with no product_id).  The API rejects
+            # these at the request level.  Treat them as a recoverable
+            # model mistake — let the next iteration retry — rather
+            # than killing the whole conversation.
+            if "tool_use_failed" in err_str or "invalid_request_error" in err_str:
+                continue
+            # Genuine connection / auth / infrastructure error
             fallback = "I'm having trouble connecting right now. Please try again in a moment."
             log("assistant_response", session_id, preview=fallback[:80])
             return fallback
@@ -591,7 +903,7 @@ app = FastAPI(title="ShopAssist API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[o.strip() for o in db.ALLOWED_ORIGINS.split(",") if o.strip()],
     allow_methods=["POST"],
     allow_headers=["*"],
 )
@@ -628,6 +940,7 @@ class ChatResponse(BaseModel):
     reply: str
     session_id: str
     products: list[dict] | None = None
+    orders: list[dict] | None = None
 
 
 @app.get("/health")
@@ -636,14 +949,28 @@ def health() -> dict:
 
 
 # ── Shared product-catalog builder (eliminates duplicate logic) ──────
-def _fetch_products_with_ratings(offset: int = 0, limit: int | None = None) -> list[dict]:
+def _fetch_products_with_ratings(
+    offset: int = 0,
+    limit: int | None = None,
+    category: str | None = None,
+    max_price: float | None = None,
+    query: str | None = None,
+) -> list[dict]:
     """Return a unified product list enriched with average ratings and
-    review counts.  Used by the REST endpoint and the chat-flow payload."""
+    review counts.  Optional *category*, *max_price*, and *query* params
+    mirror search_products filters so the frontend payload matches what
+    the user asked for."""
     try:
-        query = db.supabase.table("products").select("*").order("id")
+        q = db.supabase.table("products").select("*").order("id")
+        if category:
+            q = q.ilike("category", f"%{category}%")
+        if max_price is not None:
+            q = q.lte("price", max_price)
+        if query:
+            q = q.ilike("name", f"%{query}%")
         if limit is not None:
-            query = query.range(offset, offset + limit - 1)
-        rows = query.execute().data
+            q = q.range(offset, offset + limit - 1)
+        rows = q.limit(50).execute().data
     except Exception:
         logger.error("Failed to fetch products from Supabase", exc_info=True)
         return []
@@ -707,40 +1034,121 @@ def _build_products_payload() -> list[dict]:
     return _fetch_products_with_ratings()
 
 
+def _build_orders_payload(session_id: str) -> list[dict]:
+    """Return structured order history for the frontend, mirroring the
+    enriched data that get_orders already produces for the LLM."""
+    try:
+        records = (
+            db.supabase.table("orders")
+            .select("id, product_name, quantity, total_price, ordered_at")
+            .eq("session_id", session_id)
+            .order("ordered_at", desc=True)
+            .execute()
+            .data
+        )
+    except Exception:
+        logger.error("Failed to fetch orders from Supabase", exc_info=True)
+        return []
+
+    from datetime import datetime, timedelta  # local import for delivery calc
+
+    def _add_business_days(start: datetime, count: int) -> datetime:
+        current = start
+        added = 0
+        while added < count:
+            current = current + timedelta(days=1)
+            if current.weekday() < 5:
+                added += 1
+        return current
+
+    out: list[dict] = []
+    for r in records:
+        try:
+            ordered = datetime.fromisoformat(r["ordered_at"])
+            est_start = _add_business_days(ordered, 3)
+            est_end = _add_business_days(ordered, 5)
+        except (ValueError, KeyError):
+            est_start = est_end = None
+
+        out.append({
+            "id": r.get("id"),
+            "productName": r.get("product_name", ""),
+            "quantity": r.get("quantity", 0),
+            "totalPrice": float(r.get("total_price", 0)),
+            "orderedAt": r.get("ordered_at", ""),
+            "estimatedDeliveryStart": est_start.strftime("%B %d, %Y") if est_start else None,
+            "estimatedDeliveryEnd": est_end.strftime("%B %d, %Y") if est_end else None,
+        })
+    return out
+
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
     reply = run_agent(req.message, req.session_id)
 
-    # Only include structured products when get_products was called
-    # and the user's query is a browsing request (not a specific
-    # price/filter question that happened to trigger the tool internally).
+    # Build structured products payload when a product tool was called.
+    # - get_products  → always return the full catalog (ratings, images)
+    # - search_products → always return the filtered set
     session = get_session(req.session_id)
     user_lower = req.message.lower().strip()
     browse_signals = [
         "browse", "show all", "show me all", "list all", "catalog",
         "what products", "what do you have", "show products",
         "all products", "everything", "what's available",
+        "highest rated", "top rated", "best rated", "rating",
     ]
     is_browse = any(sig in user_lower for sig in browse_signals)
 
     products_data: list[dict] | None = None
-    if session.products_were_listed and is_browse:
+
+    if session.products_were_listed:
         session.products_were_listed = False
+        search_type = session.last_search_type
+        search_params = session.last_search_params
+        session.last_search_type = None
+        session.last_search_params = None
+
+        if search_type == "search_products" and search_params:
+            # Always return the filtered set — user asked for a subset
+            try:
+                products_data = _fetch_products_with_ratings(
+                    category=search_params.get("category"),
+                    max_price=search_params.get("max_price"),
+                    query=search_params.get("query"),
+                )
+            except Exception:
+                logger.error("Failed to build filtered products payload", exc_info=True)
+        elif search_type == "get_products":
+            try:
+                products_data = _build_products_payload()
+                # Sort cards by rating when user asked for ranked results
+                if search_params and search_params.get("sort_by_rating") in ("desc", "asc"):
+                    products_data.sort(
+                        key=lambda p: p.get("rating") or 0,
+                        reverse=search_params.get("sort_by_rating") == "desc",
+                    )
+            except Exception:
+                logger.error("Failed to build products payload for chat response", exc_info=True)
+
+    # Structured orders payload — mirroring the products pattern
+    orders_data: list[dict] | None = None
+    if session.orders_were_listed:
+        session.orders_were_listed = False
         try:
-            products_data = _build_products_payload()
+            orders_data = _build_orders_payload(req.session_id)
         except Exception:
-            logger.error("Failed to build products payload for chat response", exc_info=True)
-    elif session.products_were_listed:
-        session.products_were_listed = False  # reset even if we skip
+            logger.error("Failed to build orders payload", exc_info=True)
 
     # Diagnostic log
     plen = len(products_data) if products_data else 0
+    olen = len(orders_data) if orders_data else 0
     log("chat_response", req.session_id,
-        query=req.message[:80], products_len=plen,
+        query=req.message[:80], products_len=plen, orders_len=olen,
         reply_preview=reply[:80])
 
     return ChatResponse(
-        reply=reply, session_id=req.session_id, products=products_data,
+        reply=reply, session_id=req.session_id,
+        products=products_data, orders=orders_data,
     )
 
 
