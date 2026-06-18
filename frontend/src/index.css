@@ -1,0 +1,490 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — FAANG Premium Dark
+   Navy base + controlled green + indigo secondary
+   ══════════════════════════════════════════════════════════════════ */
+:root {
+  /* Foundation — deep navy, not pure black */
+  --bg: #0B0F19;
+  --surface: #111827;
+  --surface-raised: #1A2235;
+
+  /* Primary accent — green (brand, controlled usage) */
+  --accent: #22C55E;
+  --accent-glow: rgba(34, 197, 94, 0.25);
+  --accent-soft: rgba(34, 197, 94, 0.08);
+  --accent-hover: #4ADE80;
+
+  /* Secondary accent — indigo (CTAs, highlights, chat) */
+  --accent-secondary: #6366F1;
+  --accent-secondary-glow: rgba(99, 102, 241, 0.25);
+  --accent-secondary-soft: rgba(99, 102, 241, 0.08);
+
+  /* Text — 4-step hierarchy */
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --text-tertiary: #6B7280;
+
+  /* Borders — depth through contrast, not visible lines */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-visible: rgba(255, 255, 255, 0.10);
+  --border-active: rgba(255, 255, 255, 0.16);
+
+  /* Shadows — Netflix-style layered elevation */
+  --shadow-card:
+    0 1px 2px rgba(0,0,0,0.5),
+    0 4px 12px rgba(0,0,0,0.35);
+  --shadow-elevated:
+    0 2px 4px rgba(0,0,0,0.6),
+    0 8px 24px rgba(0,0,0,0.45);
+  --shadow-glow-green: 0 0 24px var(--accent-glow);
+  --shadow-glow-indigo: 0 0 24px var(--accent-secondary-glow);
+
+  /* Semantic */
+  --danger: #EF4444;
+  --warning-bg: rgba(245, 158, 11, 0.10);
+
+  /* Gradients */
+  --gradient-accent: linear-gradient(135deg, #22C55E 0%, #4ADE80 100%);
+  --gradient-pill: linear-gradient(135deg, #22C55E 0%, #6366F1 100%);
+  --gradient-card-hover: linear-gradient(135deg, rgba(34,197,94,0.06) 0%, rgba(99,102,241,0.06) 100%);
+}
+
+/* ── Global ────────────────────────────────────────────────────── */
+html {
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── Pulse animation ──────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(1.4); }
+}
+
+/* ── Scrollbar — dark ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+/* ── Markdown prose — dark-adapted ────────────────────────────── */
+.prose p { margin: 0 0 0.5em; }
+.prose p:last-child { margin-bottom: 0; }
+.prose ul, .prose ol { margin: 0.25em 0; padding-left: 1.5em; }
+.prose li { margin-bottom: 0.15em; }
+.prose strong { font-weight: 600; color: var(--text-primary); }
+.prose code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.88em;
+  background: rgba(255,255,255,0.06);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  color: var(--accent-hover);
+}
+.prose pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.prose pre code { background: none; padding: 0; color: var(--text-primary); }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 0.5em 0;
+  padding-left: 1em;
+  color: var(--text-secondary);
+}
+
+/* ── Accessibility ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────── */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* ══════════════════════════════════════════════════════════════════
+   HERO SECTION
+   All layout in plain CSS so it cannot be overridden by Tailwind
+   purging or specificity issues.
+   ══════════════════════════════════════════════════════════════════ */
+
+.hero-section {
+  position: relative;
+  /* Let content breathe — no fixed min-height that causes cut-off */
+  padding: clamp(2rem, 6vw, 4rem) clamp(1rem, 4vw, 2rem) clamp(2.5rem, 6vw, 4rem);
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, #0F172A 0%, #111827 40%, #0B0F19 100%);
+  border-radius: 0 0 32px 32px;
+  overflow: hidden;
+  z-index: 0;
+}
+/* Dual-color glow — green top-right + indigo bottom-left */
+.hero-bg::after {
+  content: '';
+  position: absolute;
+  top: -140px;
+  right: -100px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 60%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  bottom: -100px;
+  left: -80px;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, var(--accent-secondary-glow) 0%, transparent 60%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Responsive grid — mobile-first: single column, expands at 768px+ */
+.hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;  /* single column by default */
+  width: 100%;
+  align-items: center;
+  gap: clamp(1rem, 3vw, 2rem);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Two-column layout on tablet and desktop */
+@media (min-width: 768px) {
+  .hero-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.hero-text {
+  position: relative;
+  z-index: 2;
+  text-align: center;       /* centered on mobile */
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  background-color: var(--accent-soft);
+  padding: 5px 14px;
+  border-radius: 99px;
+  margin-bottom: 10px;
+}
+
+.hero-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.5rem, 8vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  margin: 0 0 12px;
+}
+
+.hero-subtext {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(13px, 1.5vw, 16px);
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 auto 20px;      /* centered on mobile */
+  max-width: 480px;
+}
+
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: center;
+  justify-content: center;  /* centered on mobile */
+}
+
+.hero-stat-item {
+  text-align: left;
+}
+
+.hero-stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(18px, 2.5vw, 28px);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.hero-stat-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 3px;
+}
+
+.hero-illustration {
+  display: none;             /* hidden on mobile */
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+/* Two-column layout: show illustration + left-align text */
+@media (min-width: 768px) {
+  .hero-illustration {
+    display: flex;
+  }
+
+  .hero-text {
+    text-align: left;
+  }
+
+  .hero-subtext {
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .hero-stats {
+    justify-content: flex-start;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FILTER BAR
+   ══════════════════════════════════════════════════════════════════ */
+
+.filter-bar {
+  position: sticky;
+  top: 56px;
+  z-index: 5;
+  background-color: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: none;
+}
+
+.filter-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px clamp(1rem, 4vw, 2rem);
+}
+
+@media (min-width: 640px) {
+  .filter-label {
+    display: block;
+  }
+}
+
+/* Pills row — horizontally scrollable, never wraps */
+.pills-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: nowrap;         /* NEVER wrap to next line */
+  overflow-x: auto;          /* scroll horizontally */
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; /* smooth scroll on iOS */
+  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;  /* IE */
+  padding-bottom: 10px;      /* breathing room if scrollbar appears */
+  /* Allow pills to take remaining space */
+  flex: 1;
+  min-width: 0;              /* CRITICAL — allows flex child to shrink below content size */
+}
+
+.pills-row::-webkit-scrollbar {
+  display: none;             /* Chrome/Safari */
+}
+
+/* Individual pill */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+  /* Inactive */
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.pill:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+  box-shadow: 0 0 12px rgba(255,255,255,0.04);
+  transform: translateY(-1px);
+}
+
+.pill-icon {
+  font-size: 17px;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.25s ease;
+}
+
+.pill:hover .pill-icon {
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PRODUCT GRID
+   Plain CSS breakpoints — guaranteed to work regardless of Tailwind
+   purge config or JIT class detection issues.
+   ══════════════════════════════════════════════════════════════════ */
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);  /* 2 cols on mobile */
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);  /* 3 cols on tablet */
+  }
+}
+
+@media (min-width: 1024px) {
+  .product-grid {
+    grid-template-columns: repeat(4, 1fr);  /* 4 cols on desktop */
+  }
+}
+
+/* Skeleton shimmer animation */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Header meta — hide on mobile ── */
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+@media (max-width: 480px) {
+  .header-meta {
+    display: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MICRO-INTERACTIONS — Premium feel
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Smooth scale on interactive elements */
+button, .pill, a {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card hover — premium lift */
+.product-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-elevated), var(--shadow-glow-green);
+}
+
+/* Focus ring — green + indigo dual glow */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-secondary-glow);
+}
+
+/* Chat input glow on focus */
+.chat-input:focus {
+  border-color: var(--accent-secondary) !important;
+  box-shadow: 0 0 0 3px var(--accent-secondary-glow) !important;
+}
+
+/* Smooth selection color */
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+/* Premium scroll reveal feel */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.product-card {
+  animation: fadeUp 0.4s ease both;
+}
+.product-card:nth-child(1) { animation-delay: 0.05s; }
+.product-card:nth-child(2) { animation-delay: 0.10s; }
+.product-card:nth-child(3) { animation-delay: 0.15s; }
+.product-card:nth-child(4) { animation-delay: 0.20s; }

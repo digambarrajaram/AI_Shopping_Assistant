@@ -1,20 +1,18 @@
 import os
 from dotenv import load_dotenv
-from langchain_core.tools import tool
 from supabase import Client, create_client
-import orders
-import products
-import reviews
 
 load_dotenv()
 
 # ==========================================
-# 1. CONFIGURATION & CONFIG VALIDATION
+# CONFIGURATION & VALIDATION
 # ==========================================
 
-SUPABASE_URL: str = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY")
-TABLE_NAME: str = "products"
+SUPABASE_URL: str | None = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY: str | None = os.getenv("SUPABASE_SERVICE_KEY")
+GROQ_API_KEY: str | None = os.getenv("GROQ_API_KEY")
+SUPPORT_EMAIL: str = os.getenv("SUPPORT_EMAIL", "support@store.com")
+SUPPORT_PHONE: str = os.getenv("SUPPORT_PHONE", "+1-800-123-4567")
 
 if not SUPABASE_URL:
     raise ValueError("SUPABASE_URL environment variable is missing.")
@@ -22,7 +20,11 @@ if not SUPABASE_URL:
 if not SUPABASE_SERVICE_KEY:
     raise ValueError("SUPABASE_SERVICE_KEY environment variable is missing.")
 
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY environment variable is missing.")
+
 # ==========================================
-# 2. CLIENT INITIALIZATION
+# CLIENT INITIALIZATION
 # ==========================================
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
