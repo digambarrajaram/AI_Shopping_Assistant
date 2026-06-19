@@ -98,7 +98,7 @@ export default function InputBar({
             rows={1}
             maxLength={MAX_LENGTH + 20}
             disabled={disabled}
-            className="flex-1 resize-none bg-transparent py-1 text-[14px] leading-[22px]
+            className="flex-1 resize-none bg-transparent py-1 text-[16px] leading-[22px]
                        text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]
                        disabled:opacity-40 disabled:cursor-not-allowed"
             style={{

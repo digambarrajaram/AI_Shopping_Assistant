@@ -47,6 +47,7 @@ export default function ChatWidget({
 }: ChatWidgetProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
 
   // Auto-scroll
   const scrollToBottom = useCallback(() => {
@@ -85,7 +86,6 @@ export default function ChatWidget({
     const originalBody = document.body.style.overflow;
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    // Also lock the main content wrapper to prevent scroll-through
     const contentEl = document.getElementById("main-content");
     const originalContent = contentEl?.style.overflow ?? "";
     if (contentEl) contentEl.style.overflow = "hidden";
@@ -94,6 +94,33 @@ export default function ChatWidget({
       document.documentElement.style.overflow = originalHtml;
       document.body.style.overflow = originalBody;
       if (contentEl) contentEl.style.overflow = originalContent;
+    };
+  }, [isOpen]);
+
+  // Keep chat panel visible when mobile keyboard opens (iOS Safari)
+  useEffect(() => {
+    if (!isOpen) return;
+    const panel = panelRef.current;
+    if (!panel || !window.visualViewport) return;
+
+    const handleResize = () => {
+      const vv = window.visualViewport!;
+      // Offset the panel so the input bar stays above the keyboard
+      const offset = window.innerHeight - vv.height - vv.offsetTop;
+      if (offset > 0) {
+        panel.style.bottom = `${offset}px`;
+        panel.style.height = `${vv.height}px`;
+      } else {
+        panel.style.bottom = "0px";
+        panel.style.height = "100dvh";
+      }
+    };
+
+    window.visualViewport.addEventListener("resize", handleResize);
+    window.visualViewport.addEventListener("scroll", handleResize);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
     };
   }, [isOpen]);
 
@@ -114,6 +141,7 @@ export default function ChatWidget({
 
           {/* Panel */}
           <motion.aside
+            ref={panelRef}
             variants={panelVariants}
             initial="hidden"
             animate="visible"
