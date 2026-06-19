@@ -134,7 +134,7 @@ The repo includes a `vercel.json` preset. The frontend builds as a static Vite s
 
 1. Push this repo to GitHub
 2. Import project in [Vercel](https://vercel.com)
-3. In **Project Settings → General → Root Directory**, set it to `frontend`
+3. Vercel auto-detects the config from `vercel.json`
 4. **Set environment variable** in Vercel dashboard:
    - `VITE_API_URL` = your deployed backend URL (e.g., `https://shopassist-api.railway.app`)
 5. Deploy
