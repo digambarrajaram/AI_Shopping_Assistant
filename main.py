@@ -166,19 +166,28 @@ import db
 # LAYER 5 — OBSERVABILITY SETUP
 # =============================================================================
 
-os.makedirs("logs", exist_ok=True)
-
-_file_handler = logging.handlers.RotatingFileHandler(
-    "logs/shopassist.log", maxBytes=5_000_000, backupCount=7
-)
-_file_handler.setFormatter(logging.Formatter("%(message)s"))
-
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[_file_handler],
-    format="%(message)s",
-)
 logger = logging.getLogger("shopassist")
+
+if db.IS_VERCEL:
+    # Vercel has a read-only filesystem — log to stdout (captured by Vercel Logs)
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(logging.Formatter("%(message)s"))
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[_stream_handler],
+        format="%(message)s",
+    )
+else:
+    os.makedirs("logs", exist_ok=True)
+    _file_handler = logging.handlers.RotatingFileHandler(
+        "logs/shopassist.log", maxBytes=5_000_000, backupCount=7
+    )
+    _file_handler.setFormatter(logging.Formatter("%(message)s"))
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[_file_handler],
+        format="%(message)s",
+    )
 
 
 def log(event: str, session_id: str, **data):
@@ -227,7 +236,8 @@ SESSION_TTL_SECONDS  = 1800
 
 
 class Session:
-    def __init__(self):
+    def __init__(self, session_id: str | None = None):
+        self.session_id = session_id
         self.messages: list[BaseMessage] = []
         self.last_active: float = time.time()
         self.products_were_listed: bool = False     # set by execute_tool
@@ -273,24 +283,80 @@ class Session:
         if len(self.messages) > MAX_HISTORY_MESSAGES:
             self._safe_trim()
         self.last_active = time.time()
+        self._persist()
 
     def is_expired(self) -> bool:
         return (time.time() - self.last_active) > SESSION_TTL_SECONDS
 
+    def _persist(self) -> None:
+        """Save session to Supabase so it survives Vercel cold starts."""
+        if not self.session_id:
+            return
+        try:
+            db.save_session(
+                session_id=self.session_id,
+                messages_json=[m.model_dump(mode="json") for m in self.messages],
+                last_active=self.last_active,
+                products_were_listed=self.products_were_listed,
+                orders_were_listed=self.orders_were_listed,
+                last_search_type=self.last_search_type,
+                last_search_params=self.last_search_params,
+            )
+        except Exception:
+            pass  # Best-effort persistence
 
-# ⚠️ In-process state — NOT multi-worker safe (see FIX 25).
-_memory_store: dict[str, Session] = {}
+
+def _deserialize_messages(raw: list[dict]) -> list[BaseMessage]:
+    """Reconstruct LangChain messages from JSON dicts."""
+    messages: list[BaseMessage] = []
+    for item in raw:
+        msg_type = item.get("type", "")
+        content = item.get("content", "")
+        if msg_type == "human":
+            messages.append(HumanMessage(content=content))
+        elif msg_type == "ai":
+            tool_calls = item.get("tool_calls", [])
+            msg = AIMessage(content=content)
+            if tool_calls:
+                msg.tool_calls = tool_calls
+            messages.append(msg)
+        elif msg_type == "tool":
+            messages.append(ToolMessage(
+                content=content,
+                tool_call_id=item.get("tool_call_id", ""),
+            ))
+        elif msg_type == "system":
+            messages.append(SystemMessage(content=content))
+        # Skip unknown types rather than crashing
+    return messages
 
 
 def get_session(session_id: str) -> Session:
-    expired = [k for k, v in _memory_store.items() if v.is_expired()]
-    for k in expired:
-        del _memory_store[k]
-        log("session_expired", k)
-    if session_id not in _memory_store:
-        _memory_store[session_id] = Session()
-        log("session_created", session_id)
-    return _memory_store[session_id]
+    """Load session from Supabase, or create a new one.
+    Falls back to in-memory store if DB is unavailable."""
+    session = Session(session_id=session_id)
+
+    # Try loading from Supabase
+    try:
+        row = db.load_session(session_id)
+        if row:
+            raw_messages = row.get("messages", [])
+            if isinstance(raw_messages, str):
+                import json
+                raw_messages = json.loads(raw_messages)
+            session.messages = _deserialize_messages(raw_messages)
+            session.last_active = float(row.get("last_active", time.time()))
+            session.products_were_listed = bool(row.get("products_were_listed", False))
+            session.orders_were_listed = bool(row.get("orders_were_listed", False))
+            session.last_search_type = row.get("last_search_type")
+            session.last_search_params = row.get("last_search_params")
+            log("session_loaded", session_id, msg_count=len(session.messages))
+            return session
+    except Exception:
+        pass  # DB unavailable — use fresh session
+
+    log("session_created", session_id)
+    return session
 
 
 # =============================================================================

@@ -14,16 +14,17 @@ An AI-powered shopping assistant with a production-quality chat interface. Built
              │
     ┌────────▼────────┐     ┌──────────────────────┐
     │  React + Vite    │     │   FastAPI Backend     │
-    │  Frontend        │────▶│   (single worker)     │
-    │  Port 5173       │     │   Port 8000           │
+    │  Frontend        │────▶│   api/index.py        │
+    │  (Vercel static) │     │   (Vercel serverless) │
     └─────────────────┘     └──────┬───────────────┘
                                    │
                     ┌──────────────┼──────────────┐
                     │              │              │
              ┌──────▼──────┐ ┌────▼────┐ ┌──────▼──────┐
              │  Supabase    │ │  AWS    │ │  LangSmith   │
-             │  (DB/Storage)│ │ Bedrock │ │  (Tracing)   │
-             └──────────────┘ └─────────┘ └──────────────┘
+             │  (DB/Storage │ │ Bedrock │ │  (Tracing)   │
+             │   + Sessions)│ └─────────┘ └──────────────┘
+             └──────────────┘
 ```
 
 ## Prerequisites
@@ -95,15 +96,17 @@ npm run dev
 
 ```
 ├── main.py              # FastAPI app, agent loop, guardrails, session management
-├── db.py                # Supabase client, env var validation, config
+├── db.py                # Supabase client, env var validation, session persistence
 ├── products.py          # get_products & search_products tools
 ├── orders.py            # place_order & get_orders tools
 ├── reviews.py           # get_reviews tool
 ├── requirements.txt     # Python dependencies
-├── Dockerfile           # Backend container build
+├── Dockerfile           # Backend container build (alternative to Vercel)
 ├── .env.example         # Environment variable template
-├── vercel.json          # Vercel frontend deployment config
-├── logs/                # JSON-structured log output
+├── vercel.json          # Vercel config (frontend + backend)
+├── api/
+│   └── index.py         # Vercel serverless entry point (FastAPI)
+├── logs/                # JSON-structured log output (local dev only)
 │
 └── frontend/
     ├── src/
@@ -128,20 +131,43 @@ npm run dev
 
 ## Deployment
 
-### Frontend → Vercel
+### Full-stack → Vercel (frontend + backend in a single project)
 
-The repo includes a `vercel.json` preset. The frontend builds as a static Vite site:
+The repo is configured for single-click Vercel deployment with both frontend and backend:
 
 1. Push this repo to GitHub
 2. Import project in [Vercel](https://vercel.com)
 3. Vercel auto-detects the config from `vercel.json`
-4. **Set environment variable** in Vercel dashboard:
-   - `VITE_API_URL` = your deployed backend URL (e.g., `https://shopassist-api.railway.app`)
+4. **Add all environment variables** from `.env.example` in Vercel Dashboard → Settings → Environment Variables
 5. Deploy
 
-### Backend → Docker / Railway / Render
+**How it works:**
+```
+Browser request to /chat  →  Vercel rewrite  →  api/index.py (FastAPI)
+Browser request to /*     →  Vercel static   →  frontend/dist/index.html (React SPA)
+```
 
-> **IMPORTANT:** The backend uses in-process state for sessions, rate limiting, and abuse tracking. It **MUST run as a single worker**. Do not scale horizontally without migrating state to Redis or a shared database.
+The frontend uses same-origin API paths (`/chat`, `/products`) which Vercel routes to the Python serverless function. No separate backend URL needed.
+
+> **Session persistence:** Chat sessions are stored in Supabase so they survive serverless cold starts. Create the table once in Supabase SQL Editor:
+> ```sql
+> CREATE TABLE IF NOT EXISTS chat_sessions (
+>     id TEXT PRIMARY KEY,
+>     messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+>     last_active DOUBLE PRECISION NOT NULL DEFAULT 0,
+>     products_were_listed BOOLEAN NOT NULL DEFAULT FALSE,
+>     orders_were_listed BOOLEAN NOT NULL DEFAULT FALSE,
+>     last_search_type TEXT,
+>     last_search_params JSONB,
+>     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+> );
+> ```
+
+### Backend only → Docker / Railway / Render
+
+If you prefer a long-running backend instead of serverless:
+
+> **IMPORTANT:** The backend uses in-process state for rate limiting and abuse tracking when NOT on Vercel. It **MUST run as a single worker**. Do not scale horizontally without migrating state to Redis or a shared database.
 
 #### Option A: Docker (any platform)
 
