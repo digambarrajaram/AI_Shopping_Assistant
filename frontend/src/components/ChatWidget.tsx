@@ -78,25 +78,22 @@ export default function ChatWidget({
   const hasUserMessages = messages.some((m) => m.role === "user");
   const hasError = connectionStatus === "error";
 
-  // Lock all background scroll when chat is open
+  // Lock background scroll when chat is open (mobile: full-screen; desktop: sidebar)
   useEffect(() => {
     if (!isOpen) return;
-    const html = document.documentElement;
-    const body = document.body;
-    const originalHtml = html.style.overflow;
-    const originalBody = body.style.overflow;
-    // Also prevent touch-scroll on the content wrapper behind the chat
+    const originalHtml = document.documentElement.style.overflow;
+    const originalBody = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    // Also lock the main content wrapper to prevent scroll-through
     const contentEl = document.getElementById("main-content");
-    const originalContent = contentEl?.style.overflow;
-
-    html.style.overflow = "hidden";
-    body.style.overflow = "hidden";
+    const originalContent = contentEl?.style.overflow ?? "";
     if (contentEl) contentEl.style.overflow = "hidden";
 
     return () => {
-      html.style.overflow = originalHtml;
-      body.style.overflow = originalBody;
-      if (contentEl) contentEl.style.overflow = originalContent ?? "";
+      document.documentElement.style.overflow = originalHtml;
+      document.body.style.overflow = originalBody;
+      if (contentEl) contentEl.style.overflow = originalContent;
     };
   }, [isOpen]);
 
@@ -104,16 +101,14 @@ export default function ChatWidget({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop — blocks all interaction with background content */}
+          {/* Backdrop — closes chat on tap, blocks interaction with background */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-30 bg-black/50"
-            style={{ touchAction: "none" }}
             onClick={onClose}
-            onWheel={(e) => e.preventDefault()}
             aria-hidden="true"
           />
 
