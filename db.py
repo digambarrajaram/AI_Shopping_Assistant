@@ -29,8 +29,10 @@ if not SUPABASE_URL:
 if not SUPABASE_SERVICE_KEY:
     raise ValueError("SUPABASE_SERVICE_KEY environment variable is missing.")
 
+# Google AI is a fallback provider (not the active one — Bedrock is active).
+# Warn if missing but don't crash — the app works fine without it.
 if not GOOGLE_API_KEY:
-    raise ValueError("GOOGLE_API_KEY environment variable is missing.")
+    print("WARNING: GOOGLE_API_KEY is not set. Google Gemini fallback is unavailable.", flush=True)
 
 if not AWS_BEARER_TOKEN_BEDROCK:
     raise ValueError("AWS_BEARER_TOKEN_BEDROCK environment variable is missing.")

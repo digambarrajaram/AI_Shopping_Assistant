@@ -149,7 +149,11 @@ import json
 import logging
 import logging.handlers
 from collections import defaultdict
-from langchain_google_genai import ChatGoogleGenerativeAI
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: F401 — fallback only
+except ImportError:
+    ChatGoogleGenerativeAI = None  # type: ignore[assignment]
+
 from langchain_core.messages import (
     ToolMessage, AIMessage, HumanMessage, SystemMessage, BaseMessage
 )
