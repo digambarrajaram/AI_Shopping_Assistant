@@ -45,11 +45,13 @@ def _fetch_ratings_map() -> dict[int, tuple[float, int]]:
 
 
 def _format_product_line(p: dict, ratings_map: dict[int, tuple[float, int]]) -> str:
-    """Format one product line with optional rating info."""
+    """Format one product line with optional rating info.
+    Avoids markdown-sensitive characters (no [], no |) so the text
+    stays readable even if the LLM echoes it back verbatim."""
     pid = p.get("id", "?")
     name = p.get("name", "Unknown")
     price = _safe_price(p)
-    tag = " [Organic]" if p.get("is_organic") else ""
+    tag = " · Organic" if p.get("is_organic") else ""
     desc = p.get("description", "") or ""
     cat = p.get("category", "") or ""
 
@@ -57,10 +59,10 @@ def _format_product_line(p: dict, ratings_map: dict[int, tuple[float, int]]) -> 
     rating_info = ""
     if pid != "?" and int(pid) in ratings_map:
         avg, count = ratings_map[int(pid)]
-        stars = "⭐" * int(round(avg))
-        rating_info = f" | {avg}/5 {stars} ({count} review{'s' if count != 1 else ''})"
+        stars = "⭐" * int(avg)  # floor — 4.7 → 4 stars, not 5
+        rating_info = f" — {avg}/5 {stars} ({count} review{'s' if count != 1 else ''})"
 
-    return f"{pid}. {name} - ${price:.2f}{tag} - {cat} - {desc}{rating_info}"
+    return f"{pid}. {name} - ${price:.2f}{tag} · {cat} · {desc}{rating_info}"
 
 
 @tool
@@ -117,7 +119,7 @@ def search_products(
     Args:
         category: Optional category name to filter by.
         max_price: Optional maximum price in USD.
-        query: Optional keyword to match against the product name.
+        query: Optional keyword to match against product name OR category.
     """
     try:
         q = db.supabase.table("products").select(
@@ -128,7 +130,9 @@ def search_products(
         if max_price is not None:
             q = q.lte("price", max_price)
         if query:
-            q = q.ilike("name", f"%{query}%")
+            q = q.or_(
+                f"name.ilike.%{query}%,category.ilike.%{query}%"
+            )
         result = q.order("id").limit(50).execute().data
         if not result:
             return "No products matched that search."

@@ -36,6 +36,7 @@ virtualenv/
 
 # Logs
 *.log
+/logs/
 
 # OS
 Thumbs.db
@@ -44,5 +45,8 @@ Thumbs.db
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+
+# Windows Python venv at project root
+AI_Shopping_Assistant/
 
 .claude/

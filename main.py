@@ -135,6 +135,12 @@ Fixes applied (2026-06-18) — round 3 (robustness & structured data):
            Converse) confirmed active in Session.add_message.
 """
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Pin .env to project root so tracing works regardless of cwd
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=_ENV_PATH)
 import os
 import re
 import uuid
@@ -148,6 +154,7 @@ from langchain_core.messages import (
     ToolMessage, AIMessage, HumanMessage, SystemMessage, BaseMessage
 )
 from langchain_aws import ChatBedrockConverse
+from langsmith.run_helpers import traceable
 
 
 import products
@@ -827,6 +834,7 @@ SAFE_FALLBACK = (
 )
 
 
+@traceable(run_type="chain", name="shopassist-turn")
 def run_agent(query: str, session_id: str) -> str:
     input_result = run_input_guardrail(query, session_id)
     if not input_result.allowed:
@@ -843,7 +851,17 @@ def run_agent(query: str, session_id: str) -> str:
         execution_messages = [SYSTEM_GUARDRAIL] + session.messages
 
         try:
-            ai_msg = llm_with_tools.invoke(execution_messages)
+            ai_msg = llm_with_tools.invoke(
+                execution_messages,
+                config={
+                    "run_name": f"llm-call-iter{iteration}",
+                    "tags": ["shopassist", "production"],
+                    "metadata": {
+                        "session_id": session_id,
+                        "iteration": iteration,
+                    },
+                },
+            )
         except Exception as exc:
             err_str = str(exc)
             log("llm_error", session_id, error=err_str)
@@ -967,7 +985,9 @@ def _fetch_products_with_ratings(
         if max_price is not None:
             q = q.lte("price", max_price)
         if query:
-            q = q.ilike("name", f"%{query}%")
+            q = q.or_(
+                f"name.ilike.%{query}%,category.ilike.%{query}%"
+            )
         if limit is not None:
             q = q.range(offset, offset + limit - 1)
         rows = q.limit(50).execute().data

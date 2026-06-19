@@ -23,7 +23,7 @@ function formatPrice(price: number): string {
 
 function StarRating({ rating, reviewCount }: { rating?: number | null; reviewCount?: number | null }) {
   if (!rating || rating === 0) return null;
-  const stars = "⭐".repeat(Math.min(5, Math.round(rating)));
+  const stars = "⭐".repeat(Math.min(5, Math.floor(rating)));  // floor — 4.7 → 4 stars
   const count = reviewCount ?? 0;
   return (
     <span className="text-[12px]" aria-label={`${rating.toFixed(1)} out of 5`}>

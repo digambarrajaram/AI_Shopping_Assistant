@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment (Windows and Unix)
+AI_Shopping_Assistant/
+venv/
+env/
+.venv/
+
+# Frontend (not part of backend container)
+frontend/
+node_modules/
+
+# Logs (runtime data, not image)
+logs/
+*.log
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+
+# Environment files (contain secrets)
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
