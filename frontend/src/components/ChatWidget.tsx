@@ -78,27 +78,42 @@ export default function ChatWidget({
   const hasUserMessages = messages.some((m) => m.role === "user");
   const hasError = connectionStatus === "error";
 
-  // Lock body scroll when chat is open on mobile
+  // Lock all background scroll when chat is open
   useEffect(() => {
-    if (isOpen) {
-      const original = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = original; };
-    }
+    if (!isOpen) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const originalHtml = html.style.overflow;
+    const originalBody = body.style.overflow;
+    // Also prevent touch-scroll on the content wrapper behind the chat
+    const contentEl = document.getElementById("main-content");
+    const originalContent = contentEl?.style.overflow;
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    if (contentEl) contentEl.style.overflow = "hidden";
+
+    return () => {
+      html.style.overflow = originalHtml;
+      body.style.overflow = originalBody;
+      if (contentEl) contentEl.style.overflow = originalContent ?? "";
+    };
   }, [isOpen]);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Mobile backdrop — prevents background interaction */}
+          {/* Backdrop — blocks all interaction with background content */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+            className="fixed inset-0 z-30 bg-black/50"
+            style={{ touchAction: "none" }}
             onClick={onClose}
+            onWheel={(e) => e.preventDefault()}
             aria-hidden="true"
           />
 
