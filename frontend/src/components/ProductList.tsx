@@ -26,7 +26,7 @@ function StarRating({ rating, reviewCount }: { rating?: number | null; reviewCou
   const stars = "⭐".repeat(Math.min(5, Math.floor(rating)));  // floor — 4.7 → 4 stars
   const count = reviewCount ?? 0;
   return (
-    <span className="text-[12px]" aria-label={`${rating.toFixed(1)} out of 5`}>
+    <span className="text-[12px]" style={{ whiteSpace: "nowrap" }} aria-label={`${rating.toFixed(1)} out of 5`}>
       {stars}{" "}
       <span className="text-[var(--text-secondary)] font-medium">{rating.toFixed(1)}</span>
       <span className="text-[var(--text-tertiary)]">

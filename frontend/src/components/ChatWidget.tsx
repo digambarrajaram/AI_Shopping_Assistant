@@ -47,7 +47,6 @@ export default function ChatWidget({
 }: ChatWidgetProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
 
   // Auto-scroll
   const scrollToBottom = useCallback(() => {
@@ -79,7 +78,7 @@ export default function ChatWidget({
   const hasUserMessages = messages.some((m) => m.role === "user");
   const hasError = connectionStatus === "error";
 
-  // Lock background scroll when chat is open (mobile: full-screen; desktop: sidebar)
+  // Lock background scroll when chat is open
   useEffect(() => {
     if (!isOpen) return;
     const originalHtml = document.documentElement.style.overflow;
@@ -94,33 +93,6 @@ export default function ChatWidget({
       document.documentElement.style.overflow = originalHtml;
       document.body.style.overflow = originalBody;
       if (contentEl) contentEl.style.overflow = originalContent;
-    };
-  }, [isOpen]);
-
-  // Keep chat panel visible when mobile keyboard opens (iOS Safari)
-  useEffect(() => {
-    if (!isOpen) return;
-    const panel = panelRef.current;
-    if (!panel || !window.visualViewport) return;
-
-    const handleResize = () => {
-      const vv = window.visualViewport!;
-      // Offset the panel so the input bar stays above the keyboard
-      const offset = window.innerHeight - vv.height - vv.offsetTop;
-      if (offset > 0) {
-        panel.style.bottom = `${offset}px`;
-        panel.style.height = `${vv.height}px`;
-      } else {
-        panel.style.bottom = "0px";
-        panel.style.height = "100dvh";
-      }
-    };
-
-    window.visualViewport.addEventListener("resize", handleResize);
-    window.visualViewport.addEventListener("scroll", handleResize);
-    return () => {
-      window.visualViewport?.removeEventListener("resize", handleResize);
-      window.visualViewport?.removeEventListener("scroll", handleResize);
     };
   }, [isOpen]);
 
@@ -141,13 +113,12 @@ export default function ChatWidget({
 
           {/* Panel */}
           <motion.aside
-            ref={panelRef}
             variants={panelVariants}
             initial="hidden"
             animate="visible"
             exit="hidden"
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed top-0 right-0 z-40 h-dvh w-full
+            className="fixed top-0 right-0 bottom-0 z-40 w-full
                        sm:w-[440px] lg:w-[480px]
                        flex flex-col border-l border-[var(--border)]"
             style={{

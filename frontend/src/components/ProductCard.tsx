@@ -37,9 +37,10 @@ function StarRating({
         alignItems: "center",
         gap: 4,
         fontFamily: "'Inter', sans-serif",
+        flexWrap: "wrap",
       }}
     >
-      <div style={{ display: "flex", gap: 1 }}>
+      <div style={{ display: "flex", gap: 1, flexShrink: 0 }}>
         {stars.map((type, i) => (
           <Star key={i} type={type} />
         ))}
@@ -49,12 +50,17 @@ function StarRating({
           fontSize: 13,
           color: "var(--text-secondary)",
           fontWeight: 500,
+          flexShrink: 0,
         }}
       >
         {rating.toFixed(1)}
       </span>
       {reviewCount && reviewCount > 0 && (
-        <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
+        <span style={{
+          fontSize: 12,
+          color: "var(--text-tertiary)",
+          whiteSpace: "nowrap",
+        }}>
           ({reviewCount.toLocaleString()} review{reviewCount !== 1 ? "s" : ""})
         </span>
       )}
