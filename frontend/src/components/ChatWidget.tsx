@@ -48,14 +48,32 @@ export default function ChatWidget({
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Auto-scroll helper — instant when opening, smooth for new messages
+  const scrollToBottom = useCallback((instant = false) => {
+    bottomRef.current?.scrollIntoView({ behavior: instant ? "instant" : "smooth" });
   }, []);
 
+  // Scroll when messages change or loading state changes
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
+
+  // Scroll to bottom when chat panel opens (restore position after unmount/remount)
+  useEffect(() => {
+    if (isOpen) {
+      // Delay to let framer-motion panel animation finish before scrolling
+      const timer = setTimeout(() => scrollToBottom(true), 350);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, scrollToBottom]);
+
+  // Scroll to bottom when prefill is applied (Ask AI button clicked)
+  useEffect(() => {
+    if (isOpen && prefill) {
+      const timer = setTimeout(() => scrollToBottom(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, prefill, scrollToBottom]);
 
   // Date separators
   const messagesWithSeparators = useMemo(() => {

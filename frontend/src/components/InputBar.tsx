@@ -26,9 +26,19 @@ export default function InputBar({
       setText(prefill);
       prefillAppliedRef.current = true;
       onPrefillApplied?.();
+      // Multiple attempts to focus — the textarea may not be ready
+      // immediately due to framer-motion panel animation
+      const tryFocus = () => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(prefill.length, prefill.length);
+        }
+      };
       requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-        textareaRef.current?.setSelectionRange(prefill.length, prefill.length);
+        tryFocus();
+        setTimeout(tryFocus, 100); // backup after panel animation
+        setTimeout(tryFocus, 400); // final backup
       });
     }
   }, [prefill, onPrefillApplied]);
