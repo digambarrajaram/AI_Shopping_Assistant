@@ -89,10 +89,14 @@ def get_products(sort_by_rating: str = "none") -> str:
         lines = [_format_product_line(p, ratings_map) for p in result]
 
         if sort_by_rating in ("desc", "asc"):
+            import re
+            _RATING_RE = re.compile(r"(\d+\.?\d*)/5\b")
+
             def _rating_key(line: str) -> float:
-                if "|" in line and "/5" in line:
+                m = _RATING_RE.search(line)
+                if m:
                     try:
-                        val = float(line.rsplit("|", 1)[-1].split("/")[0].strip())
+                        val = float(m.group(1))
                         return -val if sort_by_rating == "desc" else val
                     except (ValueError, IndexError):
                         pass

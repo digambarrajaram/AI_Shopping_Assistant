@@ -39,7 +39,7 @@ def get_reviews(product_id: int) -> str:
         lines = []
         # Summary header with average rating
         if avg_rating is not None:
-            stars = "⭐" * int(round(avg_rating))
+            stars = "⭐" * int(avg_rating)  # floor — matches products.py
             lines.append(
                 f"Average Rating: {avg_rating}/5.0 {stars} "
                 f"({review_count} review{'s' if review_count != 1 else ''})"
