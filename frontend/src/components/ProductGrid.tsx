@@ -14,17 +14,9 @@ export default function ProductGrid({
 }: ProductGridProps) {
   if (loading) {
     return (
-      /*
-        FIX: Use inline style grid so it cannot be affected by Tailwind
-        purging. grid-template-columns scales from 1 → 2 → 3 → 4 cols.
-      */
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 16,
-        }}
-        className="product-grid-skeleton"
+        className="product-grid"
+        style={{ gap: 16 }}
       >
         {Array.from({ length: 8 }).map((_, i) => (
           <div

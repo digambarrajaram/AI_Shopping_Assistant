@@ -47,11 +47,12 @@ export default function Header({ productCount }: HeaderProps) {
         <span
           style={{
             fontFamily: "'Playfair Display', serif",
-            fontSize: 20,
+            fontSize: "clamp(16px, 5vw, 20px)",
             fontWeight: 600,
             color: "#FFFFFF",
             lineHeight: 1,
             letterSpacing: "-0.02em",
+            whiteSpace: "nowrap",
           }}
         >
           ShopAssist

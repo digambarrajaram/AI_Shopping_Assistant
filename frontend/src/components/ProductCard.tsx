@@ -266,19 +266,21 @@ export default function ProductCard({ product, onAskAbout }: ProductCardProps) {
           <StarRating rating={product.rating} reviewCount={product.reviewCount} />
         </div>
 
-        {/* Price + action — pinned to bottom */}
+        {/* Price + action — pinned to bottom; wraps on narrow cards */}
         <div
           style={{
             marginTop: "auto",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 4,
             paddingTop: 8,
           }}
         >
           <span
-            className="text-[16px] font-bold text-[var(--accent)] tabular-nums"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-[14px] sm:text-[16px] font-bold text-[var(--accent)] tabular-nums"
+            style={{ fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}
           >
             ${product.price.toFixed(2)}
           </span>
@@ -289,7 +291,8 @@ export default function ProductCard({ product, onAskAbout }: ProductCardProps) {
                 e.stopPropagation();
                 onAskAbout(product.name);
               }}
-              className="text-[12px] font-semibold px-4 py-2 rounded-lg
+              className="text-[11px] sm:text-[12px] font-semibold px-3 sm:px-4 py-2 rounded-lg
+                         min-w-[72px] text-center
                          transition-all duration-250 active:scale-95
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               style={{
@@ -297,6 +300,7 @@ export default function ProductCard({ product, onAskAbout }: ProductCardProps) {
                 color: "#fff",
                 border: "none",
                 fontFamily: "'Inter', sans-serif",
+                whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "scale(1.04)";

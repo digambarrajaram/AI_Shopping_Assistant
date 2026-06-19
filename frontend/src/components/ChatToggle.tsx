@@ -23,12 +23,16 @@ export default function ChatToggle({
       initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-2xl
+      className="fixed z-30 w-14 h-14 rounded-2xl
                  flex items-center justify-center shadow-lg
                  hover:shadow-xl active:scale-95 transition-all duration-150
                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
                  focus-visible:ring-offset-2"
-      style={{ backgroundColor: "var(--accent)" }}
+      style={{
+        backgroundColor: "var(--accent)",
+        bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+        right: "calc(24px + env(safe-area-inset-right, 0px))",
+      }}
       aria-label="Open chat"
     >
       {/* Chat bubble icon */}

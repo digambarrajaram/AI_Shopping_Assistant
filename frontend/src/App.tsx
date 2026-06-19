@@ -70,7 +70,7 @@ export default function App() {
       <Header productCount={products.length} />
 
       {/* ── Page content — shifts when chat opens ───────────────── */}
-      <div className={`transition-[margin] duration-300 ${chatOpen ? "lg:mr-[480px]" : ""}`}>
+      <div className={`transition-[margin] duration-300 ${chatOpen ? "sm:mr-[440px] lg:mr-[480px]" : ""}`} style={{ overflowX: "hidden" }}>
         {/* ── Hero banner ─────────────────────────────────────────── */}
         <section className="hero-section">
         {/* Background layer — clipped separately so it doesn't clip content */}

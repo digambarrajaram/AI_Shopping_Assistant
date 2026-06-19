@@ -128,7 +128,7 @@ export default function InputBar({
             disabled={!canSend}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
+            className="flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center
                        transition-all duration-200
                        focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]
                        disabled:opacity-25 disabled:cursor-not-allowed"

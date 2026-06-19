@@ -78,17 +78,26 @@ export default function ChatWidget({
   const hasUserMessages = messages.some((m) => m.role === "user");
   const hasError = connectionStatus === "error";
 
+  // Lock body scroll when chat is open on mobile
+  useEffect(() => {
+    if (isOpen) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = original; };
+    }
+  }, [isOpen]);
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Mobile backdrop */}
+          {/* Mobile backdrop — prevents background interaction */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-30 bg-black/20 lg:hidden"
+            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
             onClick={onClose}
             aria-hidden="true"
           />
@@ -105,7 +114,9 @@ export default function ChatWidget({
                        flex flex-col border-l border-[var(--border)]"
             style={{
               backgroundColor: "#080C14",
-              boxShadow: "-4px 0 32px rgba(0,0,0,0.5), -1px 0 0 var(--accent-glow)",
+              boxShadow: "0 0 32px rgba(0,0,0,0.5)",
+              paddingTop: "env(safe-area-inset-top, 0px)",
+              paddingRight: "env(safe-area-inset-right, 0px)",
             }}
             role="complementary"
             aria-label="Chat with ShopAssist"
