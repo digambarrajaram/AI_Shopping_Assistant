@@ -78,21 +78,25 @@ export default function ChatWidget({
   const hasUserMessages = messages.some((m) => m.role === "user");
   const hasError = connectionStatus === "error";
 
-  // Lock background scroll when chat is open
+  // Pin background in place when chat is open.
+  // position:fixed on body is the only reliable way to prevent
+  // background scroll on mobile Safari.
   useEffect(() => {
     if (!isOpen) return;
-    const originalHtml = document.documentElement.style.overflow;
-    const originalBody = document.body.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    const contentEl = document.getElementById("main-content");
-    const originalContent = contentEl?.style.overflow ?? "";
-    if (contentEl) contentEl.style.overflow = "hidden";
+    const scrollY = window.scrollY;
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    document.body.style.backgroundColor = "#080C14";
 
     return () => {
-      document.documentElement.style.overflow = originalHtml;
-      document.body.style.overflow = originalBody;
-      if (contentEl) contentEl.style.overflow = originalContent;
+      const frozenY = Math.abs(parseInt(document.body.style.top || "0", 10));
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      document.body.style.backgroundColor = "";
+      window.scrollTo(0, frozenY);
     };
   }, [isOpen]);
 
