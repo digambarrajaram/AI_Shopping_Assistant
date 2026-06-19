@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import base64
 from pathlib import Path
 from dotenv import load_dotenv
 from supabase import Client, create_client
@@ -36,6 +37,24 @@ if not GOOGLE_API_KEY:
 
 if not AWS_BEARER_TOKEN_BEDROCK:
     raise ValueError("AWS_BEARER_TOKEN_BEDROCK environment variable is missing.")
+
+# Parse the Bedrock bearer token into IAM-style credentials.
+# Format: ABSK<base64> where base64 decodes to "key-id:secret"
+BEDROCK_ACCESS_KEY: str = ""
+BEDROCK_SECRET_KEY: str = ""
+BEDROCK_REGION: str = "ap-south-1"
+
+_raw_token = AWS_BEARER_TOKEN_BEDROCK
+if _raw_token.startswith("ABSK"):
+    _raw_token = _raw_token[4:]  # strip ABSK prefix
+try:
+    _decoded = base64.b64decode(_raw_token).decode("utf-8")
+    if ":" in _decoded:
+        BEDROCK_ACCESS_KEY, BEDROCK_SECRET_KEY = _decoded.split(":", 1)
+except Exception:
+    # Not a base64-encoded key pair — might be a plain bearer token.
+    # ChatBedrockConverse will fall back to boto3's default chain.
+    pass
 
 # ==========================================
 # CLIENT INITIALIZATION

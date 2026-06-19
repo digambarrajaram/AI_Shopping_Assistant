@@ -201,7 +201,11 @@ def log(event: str, session_id: str, **data):
         "session": session_id,
         **data,
     }
-    logger.info(json.dumps(record))
+    msg = json.dumps(record)
+    logger.info(msg)
+    # On Vercel, also print to stdout so logs appear in the dashboard
+    if db.IS_VERCEL:
+        print(msg, flush=True)
 
 
 # ⚠️ In-process state — NOT multi-worker safe.
@@ -395,16 +399,16 @@ tools_lookup = {t.name: t for t in tools}
 #    max_retries=2,
 #)
 
-llm = ChatBedrockConverse(
-    model_id="apac.amazon.nova-lite-v1:0",
-    # region_name=...,
-    # aws_access_key_id=...,
-    # aws_secret_access_key=...,
-    # aws_session_token=...,
-    temperature=0.4,
-    # max_tokens=...,
-    # other params...
-)
+bedrock_kwargs = {
+    "model_id": "apac.amazon.nova-lite-v1:0",
+    "region_name": db.BEDROCK_REGION,
+    "temperature": 0.4,
+}
+if db.BEDROCK_ACCESS_KEY and db.BEDROCK_SECRET_KEY:
+    bedrock_kwargs["aws_access_key_id"] = db.BEDROCK_ACCESS_KEY
+    bedrock_kwargs["aws_secret_access_key"] = db.BEDROCK_SECRET_KEY
+
+llm = ChatBedrockConverse(**bedrock_kwargs)
 
 
 
