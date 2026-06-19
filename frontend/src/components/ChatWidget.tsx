@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Message, ConnectionStatus } from "../types/chat";
 import type { ShopProduct } from "../hooks/useProducts";
@@ -58,22 +58,23 @@ export default function ChatWidget({
     scrollToBottom();
   }, [messages, isLoading, scrollToBottom]);
 
-  // Scroll to bottom when chat panel opens (restore position after unmount/remount)
+  // Scroll to bottom when chat opens — useLayoutEffect fires before paint
+  // so the scroll position is correct before the user sees anything.
+  useLayoutEffect(() => {
+    if (isOpen && bottomRef.current) {
+      // Instant scroll — no animation, no delay
+      bottomRef.current.scrollIntoView({ block: "end" });
+    }
+  }, [isOpen]);
+
+  // Backup scroll attempts for when DOM isn't ready on first frame
   useEffect(() => {
     if (isOpen) {
-      // Delay to let framer-motion panel animation finish before scrolling
-      const timer = setTimeout(() => scrollToBottom(true), 350);
-      return () => clearTimeout(timer);
+      const t1 = setTimeout(() => scrollToBottom(true), 50);
+      const t2 = setTimeout(() => scrollToBottom(true), 300);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [isOpen, scrollToBottom]);
-
-  // Scroll to bottom when prefill is applied (Ask AI button clicked)
-  useEffect(() => {
-    if (isOpen && prefill) {
-      const timer = setTimeout(() => scrollToBottom(true), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, prefill, scrollToBottom]);
 
   // Date separators
   const messagesWithSeparators = useMemo(() => {
